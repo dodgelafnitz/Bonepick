@@ -83,7 +83,7 @@ void PrintCommandOptions(std::vector<CommandOptionInfo> const & options)
   for (CommandOptionInfo const & option : options)
   {
     if (option.longName.length() > longNameLength)
-      longNameLength = option.longName.length();
+      longNameLength = unsigned(option.longName.length());
   }
 
   for (CommandOptionInfo const & option : options)
@@ -91,8 +91,11 @@ void PrintCommandOptions(std::vector<CommandOptionInfo> const & options)
     std::cout << "  -" << option.shortName << ", --" <<
       option.longName << " ";
 
-    for (unsigned i = option.longName.length(); i < longNameLength; ++i)
+    for (unsigned i = unsigned(option.longName.length());
+      i < longNameLength; ++i)
+    {
       std::cout << " ";
+    }
 
     std::cout << option.description << std::endl;
   }

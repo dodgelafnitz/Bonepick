@@ -24,6 +24,15 @@ public:
 
   virtual T *       Ptr(void)       = 0;
   virtual T const * Ptr(void) const = 0;
+
+  bool operator == (IExternal const & external) const;
+  bool operator != (IExternal const & external) const;
+
+  private:
+    friend class External<T>;
+    friend class WeakExternal<T>;
+
+  virtual ExternalData<T> * Data(void) const = 0;
 };
 
 //##############################################################################
@@ -32,8 +41,7 @@ class External : public IExternal<T>
 {
 public:
   External(void) = default;
-  External(External const & external);
-  External(External && external);
+  External(IExternal<T> const & external);
 
   template <typename... Params, typename = std::enable_if_t<
     !TypeIsDecayedTypes<External<T>, Params...>::value &&
@@ -49,7 +57,7 @@ public:
   T const * operator ->(void) const;
 
   External & operator =(External const & external);
-  External & operator =(External && external);
+  External & operator =(IExternal<T> const & external);
 
   template <typename ... Params>
   T & Emplace(Params && ... params);
@@ -60,9 +68,40 @@ public:
   void Clear(void);
 
 private:
+  virtual ExternalData<T> * Data(void) const override;
+
   ExternalData<T> * data_ = nullptr;
 };
 
+//##############################################################################
+template <typename T>
+class WeakExternal : public IExternal<T>
+{
+public:
+  WeakExternal(void) = default;
+  WeakExternal(IExternal<T> const & external);
+
+  virtual ~WeakExternal(void) override;
+
+  T & operator *(void);
+  T const & operator *(void) const;
+
+  T * operator ->(void);
+  T const * operator ->(void) const;
+
+  WeakExternal & operator =(WeakExternal const & external);
+  WeakExternal & operator =(IExternal<T> const & external);
+
+  virtual T * Ptr(void) override;
+  virtual T const * Ptr(void) const override;
+
+  void Clear(void);
+
+private:
+  virtual ExternalData<T> * Data(void) const  override;
+
+  ExternalData<T> * data_ = nullptr;
+};
 
 //##############################################################################
 template <typename T>
@@ -79,6 +118,9 @@ public:
   void AddStrongRef(void);
   void RemoveStrongRef(void);
 
+  void AddWeakRef(void);
+  void RemoveWeakRef(void);
+
   T *       Ptr(void);
   T const * Ptr(void) const;
 
@@ -94,24 +136,32 @@ private:
   template <typename ... Params>
   ExternalData(Params && ... params);
 
-  int        strongRefCount_ = 1;
+  int         strongRefCount_ = 1;
+  int         weakRefCount_   = 0;
   Optional<T> value_;
 };
 
 //##############################################################################
 template <typename T>
-External<T>::External(External const & external) :
-  data_(external.data_)
+bool IExternal<T>::operator ==(IExternal const & external) const
 {
-  external.data_->AddStrongRef();
+  return Ptr() == external.Ptr();
 }
 
 //##############################################################################
 template <typename T>
-External<T>::External(External && external) :
-  data_(external.data_)
+bool IExternal<T>::operator !=(IExternal const & external) const
 {
-  external.data_ = nullptr;
+  return Ptr() != external.Ptr();
+}
+
+//##############################################################################
+template <typename T>
+External<T>::External(IExternal<T> const & external) :
+  data_(external.Data())
+{
+  if (data_)
+    data_->AddStrongRef();
 }
 
 //##############################################################################
@@ -172,29 +222,24 @@ T const * External<T>::operator ->(void) const
 template <typename T>
 External<T> & External<T>::operator =(External const & external)
 {
-  if (this == &external)
-    return *this;
-
-  if (data_ == external.data_)
-    return *this;
-
-  Clear();
-  data_ = external.data_;
-  data_->AddStrongRef();
-
-  return *this;
+  return operator =(static_cast<IExternal<T> const &>(external));
 }
 
 //##############################################################################
 template <typename T>
-External<T> & External<T>::operator =(External && external)
+External<T> & External<T>::operator =(IExternal<T> const & external)
 {
   if (this == &external)
     return *this;
 
+  if (data_ == external.Data())
+    return *this;
+
   Clear();
-  data_          = external.data_;
-  external.data_ = nullptr;
+  data_ = external.Data();
+
+  if (data_)
+    data_->AddStrongRef();
 
   return *this;
 }
@@ -245,6 +290,127 @@ void External<T>::Clear(void)
 
 //##############################################################################
 template <typename T>
+ExternalData<T> * External<T>::Data(void) const
+{
+  return data_;
+}
+
+//##############################################################################
+template <typename T>
+WeakExternal<T>::WeakExternal(IExternal<T> const & external)
+  : data_(external.Data())
+{
+  if (data_)
+    data_->AddWeakRef();
+}
+
+//##############################################################################
+template <typename T>
+WeakExternal<T>::~WeakExternal(void)
+{
+  Clear();
+}
+
+//##############################################################################
+template <typename T>
+T & WeakExternal<T>::operator *(void)
+{
+  ASSERT(data_);
+  ASSERT(data_->Ptr());
+
+  return *data_->Ptr();
+}
+
+//##############################################################################
+template <typename T>
+T const & WeakExternal<T>::operator *(void) const
+{
+  ASSERT(data_);
+  ASSERT(data_->Ptr());
+
+  return *data_->Ptr();
+}
+
+//##############################################################################
+template <typename T>
+T * WeakExternal<T>::operator ->(void)
+{
+  ASSERT(data_);
+  ASSERT(data_->Ptr());
+
+  return data_->Ptr();
+}
+
+//##############################################################################
+template <typename T>
+T const * WeakExternal<T>::operator ->(void) const
+{
+  ASSERT(data_);
+  ASSERT(data_->Ptr());
+
+  return data_->Ptr();
+}
+
+//##############################################################################
+template <typename T>
+WeakExternal<T> & WeakExternal<T>::operator =(WeakExternal const & external)
+{
+  return operator =(static_cast<IExternal<T> const &>(external));
+}
+
+//##############################################################################
+template <typename T>
+WeakExternal<T> & WeakExternal<T>::operator =(IExternal<T> const & external)
+{
+  if (this == &external)
+    return *this;
+
+  if (data_ == external.Data())
+    return *this;
+
+  Clear();
+  data_ = external.Data();
+
+  if (data_)
+    data_->AddWeakRef();
+
+  return *this;
+}
+
+//##############################################################################
+template <typename T>
+T * WeakExternal<T>::Ptr(void)
+{
+  return data_ ? data_->Ptr() : nullptr;
+}
+
+//##############################################################################
+template <typename T>
+T const * WeakExternal<T>::Ptr(void) const
+{
+  return data_ ? data_->Ptr() : nullptr;
+}
+
+//##############################################################################
+template <typename T>
+void WeakExternal<T>::Clear(void)
+{
+  if (data_)
+  {
+    data_->RemoveWeakRef();
+    data_ = nullptr;
+  }
+}
+
+//##############################################################################
+template <typename T>
+ExternalData<T> * WeakExternal<T>::Data(void) const
+{
+  return data_;
+}
+
+//##############################################################################
+template <typename T>
 ExternalData<T> * ExternalData<T>::Create(void)
 {
   return new ExternalData<T>();
@@ -285,6 +451,22 @@ template <typename T>
 void ExternalData<T>::RemoveStrongRef(void)
 {
   if (--strongRefCount_ == 0)
+    value_.Clear();
+}
+
+//##############################################################################
+template <typename T>
+void ExternalData<T>::AddWeakRef(void)
+{
+  ++weakRefCount_;
+}
+
+//##############################################################################
+template <typename T>
+void ExternalData<T>::RemoveWeakRef(void)
+{
+  --weakRefCount_;
+  if (TotalRefs() == 0)
     Destroy(this);
 }
 
@@ -292,6 +474,9 @@ void ExternalData<T>::RemoveStrongRef(void)
 template <typename T>
 T * ExternalData<T>::Ptr(void)
 {
+  if (strongRefCount_ == 0)
+    return nullptr;
+
   return value_.Ptr();
 }
 
@@ -299,6 +484,9 @@ T * ExternalData<T>::Ptr(void)
 template <typename T>
 T const * ExternalData<T>::Ptr(void) const
 {
+  if (strongRefCount_ == 0)
+    return nullptr;
+
   return value_.Ptr();
 }
 
@@ -306,7 +494,7 @@ T const * ExternalData<T>::Ptr(void) const
 template <typename T>
 int ExternalData<T>::TotalRefs(void) const
 {
-  return strongRefCount_;
+  return strongRefCount_ + weakRefCount_;
 }
 
 //##############################################################################

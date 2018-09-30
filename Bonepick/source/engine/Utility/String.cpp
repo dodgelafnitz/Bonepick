@@ -29,6 +29,9 @@ String::String(String const & str)
     type_ = StringTypeInternal;
     break;
   };
+
+  if (str.type_ == StringTypeOwned)
+    MakeOwner();
 }
 
 //##############################################################################
@@ -54,8 +57,8 @@ String::String(String && str)
 String::String(char const * str) :
   type_(StringTypeExternal)
 {
-  str_.outer.ptr = str;
-  str_.outer.size = std::strlen(str);
+  str_.outer.ptr  = str;
+  str_.outer.size = int(std::strlen(str));
 }
 
 //##############################################################################
@@ -77,8 +80,8 @@ String::String(char const * str, int size) :
 String::String(std::string const & str) :
   type_(StringTypeExternal)
 {
-  str_.outer.ptr = str.c_str();
-  str_.outer.size = str.size();
+  str_.outer.ptr  = str.c_str();
+  str_.outer.size = int(str.size());
 }
 
 //##############################################################################
@@ -109,8 +112,9 @@ void String::Append(String const & str)
     newData[Size() + str.Size()] = '\0';
 
     char const * oldData = Ptr();
+    int          oldSize = Size();
     str_.outer.ptr = newData;
-    str_.outer.size = str_.outer.size + str.Size();
+    str_.outer.size = oldSize + str.Size();
 
     if (type_ == StringTypeOwned)
       delete[] oldData;
@@ -141,7 +145,7 @@ void String::Clear(void)
 int String::Size(void) const
 {
   return type_ == StringTypeInternal ?
-    std::strlen(str_.inner) : str_.outer.size;
+    int (std::strlen(str_.inner)) : str_.outer.size;
 }
 
 //##############################################################################

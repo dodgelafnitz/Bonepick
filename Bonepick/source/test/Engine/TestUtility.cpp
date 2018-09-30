@@ -1128,20 +1128,16 @@ namespace
   }
 
   //############################################################################
-  void TestExternalMove(void)
+  void TestExternalCompare(void)
   {
-    External<int> ext0;
-    ext0.Emplace(5);
+    External<int> ext0 = 5;
+    External<int> ext1 = 5;
 
-    External<int> ext1 = std::move(ext0);
-    ASSERT(ext1.Ptr());
-    ASSERT(ext0.Ptr() == nullptr);
-    ASSERT(*ext1 == 5);
+    ASSERT(ext0 != ext1);
 
-    ext0 = std::move(ext1);
-    ASSERT(ext0.Ptr());
-    ASSERT(ext1.Ptr() == nullptr);
-    ASSERT(*ext0 == 5);
+    ext1 = ext0;
+    ASSERT(ext0 == ext1);
+
   }
 
   //############################################################################
@@ -1152,15 +1148,16 @@ namespace
 
     {
       External<Bitset> ext1;
-      ext1->Set(2);
+      ext1.Emplace(Bitset({ 2 }));
 
       ext0 = ext1;
       ASSERT(ext0.Ptr());
       ASSERT((*ext0)[2]);
       ASSERT(ext0->Get(2));
 
-      *ext0 = 4;
-      ASSERT(*ext1 == 4);
+      *ext0 = Bitset({4});
+      ASSERT(!ext1->Get(2));
+      ASSERT(ext1->Get(4));
     }
 
     ASSERT(ext0.Ptr() == nullptr);
@@ -1454,7 +1451,7 @@ namespace
     TestExternalConstAccess();
     TestExternalInitDeinit();
     TestExternalCopy();
-    TestExternalMove();
+    TestExternalCompare();
   }
 
   //############################################################################

@@ -69,5 +69,5 @@ void const * Blob::Data(void) const
 //##############################################################################
 unsigned Blob::Size(void) const
 {
-  return data_ ? data_->size() : 0;
+  return data_ ? unsigned(data_->size()) : 0;
 }
