@@ -57,6 +57,18 @@ public:
 
   bool Contains(T const & value) const;
 
+  template <typename Pred>
+  T * FindFirst(Pred const & pred = Pred());
+  template <typename Pred>
+  T * FindLast(Pred const & pred = Pred());
+  template <typename Pred>
+  T const * FindFirst(Pred const & pred = Pred()) const;
+  template <typename Pred>
+  T const * FindLast(Pred const & pred = Pred()) const;
+
+  template <typename Pred>
+  bool Contains(Pred const & pred = Pred()) const;
+
   Array & operator =(Array const & arr) = default;
   Array & operator =(Array && arr) = default;
 
@@ -272,15 +284,13 @@ T * Array<T, SizeType>::FindFirst(T const & value)
 template <typename T, typename SizeType>
 T * Array<T, SizeType>::FindLast(T const & value)
 {
-  T * result = nullptr;
-
-  for (T & element : *this)
+  for (int i = data_.size() - 1; i >= 0; --i)
   {
-    if (element == value)
-      result = &element;
+    if (data_[i] == value)
+      return = &data_[i];
   }
 
-  return result;
+  return nullptr;
 }
 
 //##############################################################################
@@ -302,6 +312,58 @@ template <typename T, typename SizeType>
 bool Array<T, SizeType>::Contains(T const & value) const
 {
   return FindFirst(value) != nullptr;
+}
+
+//##############################################################################
+template <typename T, typename SizeType>
+template <typename Pred>
+T * Array<T, SizeType>::FindFirst(Pred const & pred)
+{
+  for (T & element : *this)
+  {
+    if (pred(element))
+      return &element;
+  }
+
+  return nullptr;
+}
+
+//##############################################################################
+template <typename T, typename SizeType>
+template <typename Pred>
+T * Array<T, SizeType>::FindLast(Pred const & pred)
+{
+  for (int i = data_.size() - 1; i >= 0; --i)
+  {
+    if (pred(data_[i]))
+      return &data_[i];
+  }
+
+  return nullptr;
+}
+
+//##############################################################################
+template <typename T, typename SizeType>
+template <typename Pred>
+T const * Array<T, SizeType>::FindFirst(Pred const & pred) const
+{
+  return const_cast<Array<T, SizeType> *>(this)->FindFirst<Pred>(pred);
+}
+
+//##############################################################################
+template <typename T, typename SizeType>
+template <typename Pred>
+T const * Array<T, SizeType>::FindLast(Pred const & pred) const
+{
+  return const_cast<Array<T, SizeType> *>(this)->FindLast<Pred>(pred);
+}
+
+//##############################################################################
+template <typename T, typename SizeType>
+template <typename Pred>
+bool Array<T, SizeType>::Contains(Pred const & pred) const
+{
+  return FindFirst<Pred>(pred) != nullptr;
 }
 
 //##############################################################################
