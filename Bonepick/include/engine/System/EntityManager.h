@@ -8,30 +8,23 @@
 
 //##############################################################################
 template <typename T>
-class EntityManager
+class ComponentManager
 {
 public:
-  EntityManager(void) = default;
-  EntityManager(EntityManager const &) = default;
-  EntityManager(EntityManager &&) = default;
+  ComponentManager(void) = default;
+  ComponentManager(ComponentManager const &) = default;
+  ComponentManager(ComponentManager &&) = default;
 
-  ~EntityManager(void) = default;
+  ~ComponentManager(void) = default;
 
   void AddEntity(void);
   void AddEntity(T const & component);
 
   int EntityCount(void) const;
 
-  template <typename U>
-  U const & GetComponent(int entityId) const;
-
-  template <typename U>
-  void SetComponent(int entityId, U const & component);
-
-  template <typename U>
-  void UpdateComponent(int entityId, U const & component);
-
-  template <typename U>
+  T const & GetComponent(int entityId) const;
+  void SetComponent(int entityId, T const & component);
+  void UpdateComponent(int entityId, T const & component);
   bool ContainsComponent(int entityId) const;
 
   void Advance(void);
@@ -50,79 +43,79 @@ private:
 };
 
 //##############################################################################
-//template <typename ... Components>
-//class EntityManager
-//{
-//public:
-//  EntityManager(void) = default;
-//  EntityManager(EntityManager const &) = default;
-//  EntityManager(EntityManager &&) = default;
-//
-//  ~EntityManager(void) = default;
-//
-//  void AddEntity(void);
-//
-//  template <typename ... EntityComponents>
-//  void AddEntity(EntityComponents const & ... components);
-//
-//  int EntityCount(void) const;
-//
-//  template <typename U>
-//  U const & GetComponent(int entityId) const;
-//
-//  template <typename U>
-//  void SetComponent(int entityId, U const & component);
-//
-//  template <typename U>
-//  void UpdateComponent(int entityId, U const & component);
-//
-//  template <typename U>
-//  bool ContainsComponent(int entityId) const;
-//
-//private:
-//  TypeSet<EntityManager<Components>...>
-//    componentManagers_;
-//
-//};
+template <typename ... Components>
+class EntityManager
+{
+public:
+  EntityManager(void) = default;
+  EntityManager(EntityManager const &) = default;
+  EntityManager(EntityManager &&) = default;
+
+  ~EntityManager(void) = default;
+
+  template <typename ... EntityComponents>
+  void AddEntity(EntityComponents const & ... components);
+
+  int EntityCount(void) const;
+
+  template <typename U>
+  U const & GetComponent(int entityId) const;
+
+  template <typename U>
+  void SetComponent(int entityId, U const & component);
+
+  template <typename U>
+  void UpdateComponent(int entityId, U const & component);
+
+  template <typename U>
+  bool ContainsComponent(int entityId) const;
+
+  void Advance(void);
+
+private:
+  template <typename Component, typename ... Remainder>
+  void AddComponents(Component const & component,
+    Remainder const & ... remainder);
+
+  template <typename Component, typename ... Remainder>
+  void AddBlanks(Component const & component,
+    Remainder const & ... remainder);
+
+  TypeSet<ComponentManager<Components>...> componentManagers_;
+};
 
 //##############################################################################
 template <typename T>
-void EntityManager<T>::AddEntity(void)
+void ComponentManager<T>::AddEntity(void)
 {
   data_.EmplaceBack();
 }
 
 //##############################################################################
 template <typename T>
-void EntityManager<T>::AddEntity(T const & component)
+void ComponentManager<T>::AddEntity(T const & component)
 {
   data_.EmplaceBack(component);
 }
 
 //##############################################################################
 template <typename T>
-int EntityManager<T>::EntityCount(void) const
+int ComponentManager<T>::EntityCount(void) const
 {
   return data_.Size();
 }
 
 //##############################################################################
 template <typename T>
-template <typename U>
-U const & EntityManager<T>::GetComponent(int entityId) const
+T const & ComponentManager<T>::GetComponent(int entityId) const
 {
-  static_assert(std::is_same_v<T, U>);
-
   return *data_[entityId];
 }
 
 //##############################################################################
 template <typename T>
-template <typename U>
-void EntityManager<T>::SetComponent(int entityId, U const & component)
+void ComponentManager<T>::SetComponent(int entityId, T const & component)
 {
-  static_assert(std::is_same_v<T, U>);
-
   ASSERT(entityId < data_.Size());
   ASSERT(entityId >= 0);
 
@@ -138,11 +131,8 @@ void EntityManager<T>::SetComponent(int entityId, U const & component)
 
 //##############################################################################
 template <typename T>
-template <typename U>
-void EntityManager<T>::UpdateComponent(int entityId, U const & component)
+void ComponentManager<T>::UpdateComponent(int entityId, T const & component)
 {
-  static_assert(std::is_same_v<T, U>);
-
   ASSERT(entityId < data_.Size());
   ASSERT(entityId >= 0);
 
@@ -160,11 +150,8 @@ void EntityManager<T>::UpdateComponent(int entityId, U const & component)
 
 //##############################################################################
 template <typename T>
-template <typename U>
-bool EntityManager<T>::ContainsComponent(int entityId) const
+bool ComponentManager<T>::ContainsComponent(int entityId) const
 {
-  static_assert(std::is_same_v<T, U>);
-
   ASSERT(entityId < data_.Size());
   ASSERT(entityId >= 0);
 
@@ -173,7 +160,7 @@ bool EntityManager<T>::ContainsComponent(int entityId) const
 
 //##############################################################################
 template <typename T>
-void EntityManager<T>::Advance(void)
+void ComponentManager<T>::Advance(void)
 {
   for (FutureData nextData : futureData_)
     data_[nextData.entityId] = nextData.component;
@@ -183,9 +170,58 @@ void EntityManager<T>::Advance(void)
 
 //##############################################################################
 template <typename T>
-EntityManager<T>::FutureData::FutureData(int entityId, T const & component) :
+ComponentManager<T>::FutureData::FutureData(int entityId, T const & component) :
   entityId(entityId),
   component(component)
 {}
+
+//##############################################################################
+template <typename ... Components>
+template <typename Component, typename ... Remainder>
+void EntityManager<Components>::AddEntity(
+  EntityComponents const & ... components)
+{
+  static_assert(TypeIsInTypes<EntityComponents, Components>::value && ...);
+
+  using 
+
+  AddEntityInternal
+
+}
+
+//##############################################################################
+template <typename ... Components>
+int EntityManager<Components>::EntityCount(void) const
+{
+}
+
+//##############################################################################
+template <typename ... Components>
+template <typename U>
+U const & EntityManager<Components>::GetComponent(int entityId) const
+{
+}
+
+//##############################################################################
+template <typename ... Components>
+template <typename U>
+void EntityManager<Components>::SetComponent(int entityId, U const & component)
+{
+}
+
+//##############################################################################
+template <typename ... Components>
+template <typename U>
+void EntityManager<Components>::UpdateComponent(
+  int entityId, U const & component)
+{
+}
+
+//##############################################################################
+template <typename ... Components>
+template <typename U>
+bool EntityManager<Components>::ContainsComponent(int entityId) const
+{
+}
 
 #endif
