@@ -3,7 +3,7 @@
 
 #include "engine/Utility/Containers/Array.h"
 #include "engine/Utility/Containers/Optional.h"
-#include "engine/Utility/Containers/TypeSet.h"
+#include "engine/Utility/Containers/Tuple.h"
 #include "engine/Utility/TemplateTools.h"
 
 //##############################################################################
@@ -81,8 +81,44 @@ private:
   void AddBlanks(Component const & component,
     Remainder const & ... remainder);
 
-  TypeSet<ComponentManager<Components>...> componentManagers_;
+  UniqueTuple<ComponentManager<Components>...> componentManagers_;
 };
+
+//##############################################################################
+//template <typename ... Components>
+//class EntityManager
+//{
+//public:
+//  EntityManager(void) = default;
+//  EntityManager(EntityManager const &) = default;
+//  EntityManager(EntityManager &&) = default;
+//
+//  ~EntityManager(void) = default;
+//
+//  void AddEntity(void);
+//
+//  template <typename ... EntityComponents>
+//  void AddEntity(EntityComponents const & ... components);
+//
+//  int EntityCount(void) const;
+//
+//  template <typename U>
+//  U const & GetComponent(int entityId) const;
+//
+//  template <typename U>
+//  void SetComponent(int entityId, U const & component);
+//
+//  template <typename U>
+//  void UpdateComponent(int entityId, U const & component);
+//
+//  template <typename U>
+//  bool ContainsComponent(int entityId) const;
+//
+//private:
+//  UniqueTuple<EntityManager<Components>...>
+//    componentManagers_;
+//
+//};
 
 //##############################################################################
 template <typename T>
