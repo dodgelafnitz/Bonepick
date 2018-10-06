@@ -11,7 +11,7 @@ template <typename Key, typename Value, typename Pred, bool KeyIsConst>
 struct KeyValuePair;
 
 template <typename ... Types>
-struct TypeSet;
+struct TypeList;
 
 template <typename T, bool AddConst>
 struct ConditionalAddConst;
@@ -33,6 +33,31 @@ struct GetNthType;
 
 template <typename TypeSet0, typename TypeSet1>
 struct TypeSetUnion;
+
+template <typename TypeSet0, typename TypeSet1>
+struct TypeSetIntersection;
+
+template <typename TypeSet0, typename TypeSet1>
+struct TypeSetComplement;
+
+template <typename TypeSet0, typename TypeSet1>
+struct TypeSetEquality;
+
+template <typename TypeSet0, typename TypeSet1>
+struct TypeSetIsSubset;
+
+template <typename TypeList0, typename TypeList1>
+struct TypeListConcatination;
+
+template <typename TypeList>
+struct TypeListRemoveDuplicates;
+
+//##############################################################################
+template <bool Constraint, typename ... Types>
+using ConstrainedTypeList = std::enable_if_t<Constraint, TypeList<Types...>>;
+
+template <typename ... Types>
+using TypeSet = ConstrainedTypeList<TypesAreUnique<Types...>::value, Types...>;
 
 //##############################################################################
 template <typename ... Args>
@@ -69,10 +94,8 @@ struct KeyValuePair
 
 //##############################################################################
 template <typename ... Types>
-struct TypeSet
-{
-  static_assert(TypesAreUnique<Types...>::value);
-};
+struct TypeList
+{};
 
 //##############################################################################
 template <typename T>
@@ -175,6 +198,109 @@ struct GetNthType<Index, Type0, Remainder...>
   static_assert(Index != 0);
 
   typedef typename GetNthType<Index - 1, Remainder...>::type type;
+};
+
+//##############################################################################
+template <typename TypeSet0, typename TypeSet1>
+struct TypeSetUnion
+{
+  typedef typename TypeListRemoveDuplicates<
+    typename TypeListConcatination<TypeSet0, TypeSet1>::type>::type type;
+};
+
+//##############################################################################
+template <typename ... Types1>
+struct TypeSetIntersection<TypeList<>, TypeList<Types1...>>
+{
+  typedef TypeList<> type;
+};
+
+//##############################################################################
+template <typename T, typename ... Types0, typename ... Types1>
+struct TypeSetIntersection<TypeList<T, Types0...>, TypeList<Types1...>>
+{
+  typedef std::conditional_t<
+    TypeIsInTypes<T, Types1...>::value,
+    typename TypeListConcatination<
+      TypeList<T>,
+      typename TypeSetIntersection<TypeSet<Types0...>, TypeSet<Types1...>>::type
+    >::type,
+    typename TypeSetIntersection<TypeSet<Types0...>, TypeSet<Types1...>>::type
+  > type;
+};
+
+//##############################################################################
+template <typename ... Types1>
+struct TypeSetComplement<TypeList<>, TypeList<Types1...>>
+{
+  typedef TypeList<> type;
+};
+
+//##############################################################################
+template <typename T, typename ... Types0, typename ... Types1>
+struct TypeSetComplement<TypeList<T, Types0...>, TypeList<Types1...>>
+{
+  typedef std::conditional_t<
+    TypeIsInTypes<T, Types1...>::value,
+    typename TypeSetComplement<TypeSet<Types0...>, TypeSet<Types1...>>::type,
+    typename TypeListConcatination<
+      TypeList<T>,
+      typename TypeSetComplement<TypeSet<Types0...>, TypeSet<Types1...>>::type
+    >::type
+  > type;
+};
+
+//##############################################################################
+template <typename TypeSet0, typename TypeSet1>
+struct TypeSetEquality
+{
+  static bool const value =
+    TypeSetIsSubset<TypeSet0, TypeSet1>::value &&
+    TypeSetIsSubset<TypeSet1, TypeSet0>::value;
+};
+
+//##############################################################################
+template <typename ... Types1>
+struct TypeSetIsSubset<TypeList<>, TypeList<Types1...>>
+{
+  static bool const value = true;
+};
+
+//##############################################################################
+template <typename T, typename ... Types0, typename ... Types1>
+struct TypeSetIsSubset<TypeList<T, Types0...>, TypeList<Types1...>>
+{
+  static bool const value =
+    TypeIsInTypes<T, Types1...>::value &&
+    TypeSetIsSubset<TypeList<Types0...>, TypeList<Types1...>>::value;
+};
+
+//##############################################################################
+template <typename ... Types0, typename ... Types1>
+struct TypeListConcatination<TypeList<Types0...>, TypeList<Types1...>>
+{
+  typedef TypeList<Types0..., Types1...> type;
+};
+
+//##############################################################################
+template <>
+struct TypeListRemoveDuplicates<TypeList<>>
+{
+  typedef TypeList<> type;
+};
+
+//##############################################################################
+template <typename T, typename ... Types>
+struct TypeListRemoveDuplicates<TypeList<T, Types...>>
+{
+  typedef std::conditional_t<
+    TypeIsInTypes<T, Types...>::value,
+    typename TypeListRemoveDuplicates<Types...>::type,
+    typename TypeListConcatination<
+      TypeList<T>,
+      typename TypeListRemoveDuplicates<Types...>::type
+    >::type
+  > type;
 };
 
 //##############################################################################
