@@ -10,6 +10,9 @@
 template <typename Key, typename Value, typename Pred, bool KeyIsConst>
 struct KeyValuePair;
 
+template <typename ... Types>
+struct TypeSet;
+
 template <typename T, bool AddConst>
 struct ConditionalAddConst;
 
@@ -27,6 +30,9 @@ struct TypesAreUnique;
 
 template <int Index, typename ... Types>
 struct GetNthType;
+
+template <typename TypeSet0, typename TypeSet1>
+struct TypeSetUnion;
 
 //##############################################################################
 template <typename ... Args>
@@ -59,6 +65,13 @@ struct KeyValuePair
 
   typename ConditionalAddConst<Key, KeyIsConst>::Type key;
   Value value;
+};
+
+//##############################################################################
+template <typename ... Types>
+struct TypeSet
+{
+  static_assert(TypesAreUnique<Types...>::value);
 };
 
 //##############################################################################
