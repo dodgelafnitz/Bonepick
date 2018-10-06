@@ -16,11 +16,17 @@ struct ConditionalAddConst;
 template <typename T, typename ... Args>
 struct GetMaxSize;
 
-template <typename T, typename Type0, typename ... Types>
+template <typename T, typename ... Types>
 struct TypeIsInTypes;
 
 template <typename T, typename ... Types>
 struct TypeIsDecayedTypes;
+
+template <typename ... Types>
+struct TypesAreUnique;
+
+template <int Index, typename ... Types>
+struct GetNthType;
 
 //##############################################################################
 template <typename ... Args>
@@ -85,10 +91,16 @@ struct GetMaxSize<T>
 };
 
 //##############################################################################
-template <typename T, typename Type0, typename ... Types>
-struct TypeIsInTypes
+template <typename T>
+struct TypeIsInTypes<T>
 {
-  typedef typename TypeIsInTypes<T, Types...>::type type;
+  static bool const value = false;
+};
+
+//##############################################################################
+template <typename T, typename Type0, typename ... Types>
+struct TypeIsInTypes<T, Type0, Types...>
+{
   static bool const value = TypeIsInTypes<T, Types...>::value;
 };
 
@@ -96,7 +108,6 @@ struct TypeIsInTypes
 template <typename T, typename ... Types>
 struct TypeIsInTypes<T, T, Types...>
 {
-  typedef T type;
   static bool const value = true;
 };
 
@@ -104,7 +115,6 @@ struct TypeIsInTypes<T, T, Types...>
 template <typename T, typename Type0>
 struct TypeIsInTypes<T, Type0>
 {
-  typedef void type;
   static bool const value = false;
 };
 
@@ -120,6 +130,38 @@ template <typename T>
 struct TypeIsDecayedTypes<std::decay_t<T>, T>
 {
   static bool const value = true;
+};
+
+//##############################################################################
+template <typename Type0, typename ... Types>
+struct TypesAreUnique<Type0, Types...>
+{
+  static bool const value =
+    TypesAreUnique<Types...>::value &&
+    !TypeIsInTypes<Type0, Types...>::value;
+};
+
+//##############################################################################
+template <>
+struct TypesAreUnique<>
+{
+  static bool const value = true;
+};
+
+//##############################################################################
+template <typename Type0, typename ... Remainder>
+struct GetNthType<0, Type0, Remainder...>
+{
+  typedef Type0 type;
+};
+
+//##############################################################################
+template <int Index, typename Type0, typename ... Remainder>
+struct GetNthType<Index, Type0, Remainder...>
+{
+  static_assert(Index != 0);
+
+  typedef typename GetNthType<Index - 1, Remainder...>::type type;
 };
 
 //##############################################################################
