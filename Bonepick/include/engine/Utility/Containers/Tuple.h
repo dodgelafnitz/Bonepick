@@ -1,23 +1,23 @@
-#ifndef ENGINE_UTILITY_CONTAINERS_TYPESET_H
-#define ENGINE_UTILITY_CONTAINERS_TYPESET_H
+#ifndef ENGINE_UTILITY_CONTAINERS_TUPLE_H
+#define ENGINE_UTILITY_CONTAINERS_TUPLE_H
 
 #include "engine/Utility/TemplateTools.h"
 
 //##############################################################################
 template <typename T, typename ... Remainder>
-class TypeSet
+class UniqueTuple
 {
 public:
   static_assert(!TypeIsInTypes<T, Remainder...>::value);
 
-  TypeSet(void) = default;
-  TypeSet(TypeSet const & typeSet) = default;
-  TypeSet(TypeSet && typeSet) = default;
-  TypeSet(T const & value, Remainder && ... remainder);
-  TypeSet(T && value, Remainder && ... remainder);
+  UniqueTuple(void) = default;
+  UniqueTuple(UniqueTuple const & typeSet) = default;
+  UniqueTuple(UniqueTuple && typeSet) = default;
+  UniqueTuple(T const & value, Remainder && ... remainder);
+  UniqueTuple(T && value, Remainder && ... remainder);
 
-  TypeSet & operator =(TypeSet const & typeSet) = default;
-  TypeSet & operator =(TypeSet && typeSet) = default;
+  UniqueTuple & operator =(UniqueTuple const & typeSet) = default;
+  UniqueTuple & operator =(UniqueTuple && typeSet) = default;
 
   template <typename U>
   std::enable_if_t<!std::is_same_v<T, U>, U> & Get(void);
@@ -29,35 +29,35 @@ public:
   template <typename U>
   std::enable_if_t<std::is_same_v<T, U>, U> const & Get(void) const;
 
-  bool operator ==(TypeSet const & typeSet) const;
-  bool operator !=(TypeSet const & typeSet) const;
+  bool operator ==(UniqueTuple const & typeSet) const;
+  bool operator !=(UniqueTuple const & typeSet) const;
 
 private:
   T                     value_;
-  TypeSet<Remainder...> remainder_;
+  UniqueTuple<Remainder...> remainder_;
 };
 
 //##############################################################################
 template <typename T>
-class TypeSet<T>
+class UniqueTuple<T>
 {
 public:
-  TypeSet(void) = default;
-  TypeSet(TypeSet const & typeSet) = default;
-  TypeSet(TypeSet && typeSet) = default;
-  TypeSet(T const & value);
-  TypeSet(T && value);
+  UniqueTuple(void) = default;
+  UniqueTuple(UniqueTuple const & typeSet) = default;
+  UniqueTuple(UniqueTuple && typeSet) = default;
+  UniqueTuple(T const & value);
+  UniqueTuple(T && value);
 
-  TypeSet & operator =(TypeSet const & typeSet) = default;
-  TypeSet & operator =(TypeSet && typeSet) = default;
+  UniqueTuple & operator =(UniqueTuple const & typeSet) = default;
+  UniqueTuple & operator =(UniqueTuple && typeSet) = default;
 
   template <typename U>
   U & Get(void);
   template <typename U>
   U const & Get(void) const;
 
-  bool operator ==(TypeSet const & typeSet) const;
-  bool operator !=(TypeSet const & typeSet) const;
+  bool operator ==(UniqueTuple const & typeSet) const;
+  bool operator !=(UniqueTuple const & typeSet) const;
 
 private:
   T value_;
@@ -65,20 +65,20 @@ private:
 
 //##############################################################################
 template <typename T, typename ... Remainder>
-TypeSet<T, Remainder...>::TypeSet(T const & value, Remainder && ... remainder) :
+UniqueTuple<T, Remainder...>::UniqueTuple(T const & value, Remainder && ... remainder) :
   value_(value), remainder_(remainder...)
 {}
 
 //##############################################################################
 template <typename T, typename ... Remainder>
-TypeSet<T, Remainder...>::TypeSet(T && value, Remainder && ... remainder) :
+UniqueTuple<T, Remainder...>::UniqueTuple(T && value, Remainder && ... remainder) :
   value_(std::move(value)), remainder_(remainder...)
 {}
 
 //##############################################################################
 template <typename T, typename ... Remainder>
 template <typename U>
-std::enable_if_t<!std::is_same_v<T, U>, U> & TypeSet<T, Remainder...>::Get(
+std::enable_if_t<!std::is_same_v<T, U>, U> & UniqueTuple<T, Remainder...>::Get(
   void)
 {
   return remainder_.Get<U>();
@@ -88,7 +88,7 @@ std::enable_if_t<!std::is_same_v<T, U>, U> & TypeSet<T, Remainder...>::Get(
 template <typename T, typename ... Remainder>
 template <typename U>
 std::enable_if_t<!std::is_same_v<T, U>, U> const &
-  TypeSet<T, Remainder...>::Get(void) const
+  UniqueTuple<T, Remainder...>::Get(void) const
 {
   return remainder_.Get<U>();
 }
@@ -96,7 +96,7 @@ std::enable_if_t<!std::is_same_v<T, U>, U> const &
 //##############################################################################
 template <typename T, typename ... Remainder>
 template <typename U>
-std::enable_if_t<std::is_same_v<T, U>, U> & TypeSet<T, Remainder...>::Get(
+std::enable_if_t<std::is_same_v<T, U>, U> & UniqueTuple<T, Remainder...>::Get(
   void)
 {
   return value_;
@@ -106,41 +106,41 @@ std::enable_if_t<std::is_same_v<T, U>, U> & TypeSet<T, Remainder...>::Get(
 template <typename T, typename ... Remainder>
 template <typename U>
 std::enable_if_t<std::is_same_v<T, U>, U> const &
-  TypeSet<T, Remainder...>::Get(void) const
+  UniqueTuple<T, Remainder...>::Get(void) const
 {
   return value_;
 }
 
 //##############################################################################
 template <typename T, typename ... Remainder>
-bool TypeSet<T, Remainder...>::operator ==(TypeSet const & typeSet) const
+bool UniqueTuple<T, Remainder...>::operator ==(UniqueTuple const & typeSet) const
 {
   return value_ == typeSet.value_ && remainder_ == typeSet.remainder_;
 }
 
 //##############################################################################
 template <typename T, typename ... Remainder>
-bool TypeSet<T, Remainder...>::operator !=(TypeSet const & typeSet) const
+bool UniqueTuple<T, Remainder...>::operator !=(UniqueTuple const & typeSet) const
 {
   return !(*this == typeSet);
 }
 
 //##############################################################################
 template <typename T>
-TypeSet<T>::TypeSet(T const & value) :
+UniqueTuple<T>::UniqueTuple(T const & value) :
   value_(value)
 {}
 
 //##############################################################################
 template <typename T>
-TypeSet<T>::TypeSet(T && value) :
+UniqueTuple<T>::UniqueTuple(T && value) :
   value_(std::move(value))
 {}
 
 //##############################################################################
 template <typename T>
 template <typename U>
-U & TypeSet<T>::Get(void)
+U & UniqueTuple<T>::Get(void)
 {
   static_assert(std::is_same_v<T, U>);
   return value_;
@@ -149,7 +149,7 @@ U & TypeSet<T>::Get(void)
 //##############################################################################
 template <typename T>
 template <typename U>
-U const & TypeSet<T>::Get(void) const
+U const & UniqueTuple<T>::Get(void) const
 {
   static_assert(std::is_same_v<T, U>);
   return value_;
@@ -157,14 +157,14 @@ U const & TypeSet<T>::Get(void) const
 
 //##############################################################################
 template <typename T>
-bool TypeSet<T>::operator ==(TypeSet const & typeSet) const
+bool UniqueTuple<T>::operator ==(UniqueTuple const & typeSet) const
 {
   return value_ == typeSet.value_;
 }
 
 //##############################################################################
 template <typename T>
-bool TypeSet<T>::operator !=(TypeSet const & typeSet) const
+bool UniqueTuple<T>::operator !=(UniqueTuple const & typeSet) const
 {
   return !(*this == typeSet);
 }

@@ -9,7 +9,7 @@
 #include "engine/Utility/Containers/External.h"
 #include "engine/Utility/Containers/Optional.h"
 #include "engine/Utility/Containers/SortedArray.h"
-#include "engine/Utility/Containers/TypeSet.h"
+#include "engine/Utility/Containers/Tuple.h"
 #include "engine/Utility/Containers/Variant.h"
 #include "engine/Utility/DataLayout.h"
 #include "engine/Utility/Debug.h"
@@ -1291,9 +1291,9 @@ namespace
   }
 
   //############################################################################
-  void TestTypeSetAccess(void)
+  void TestUniqueTupleAccess(void)
   {
-    TypeSet<int, float> set0;
+    UniqueTuple<int, float> set0;
 
     set0.Get<int>() = 2;
     set0.Get<float>() = 4.0f;
@@ -1301,31 +1301,31 @@ namespace
     ASSERT(set0.Get<int>() == 2);
     ASSERT(set0.Get<float>() == 4.0f);
 
-    TypeSet<int, float> set1(5, 10.0f);
+    UniqueTuple<int, float> set1(5, 10.0f);
 
     ASSERT(set1.Get<int>() == 5);
     ASSERT(set1.Get<float>() == 10.0f);
 
-    TypeSet<MoveTester> set2(std::move(MoveTester()));
+    UniqueTuple<MoveTester> set2(std::move(MoveTester()));
 
     ASSERT(set2.Get<MoveTester>().GetState() ==
       MoveTester::MoveStateMoveConstructed);
   }
 
   //############################################################################
-  void TestTypeSetConstAccess(void)
+  void TestUniqueTupleConstAccess(void)
   {
-    TypeSet<int, float> const set0(5, 10.0f);
+    UniqueTuple<int, float> const set0(5, 10.0f);
 
     ASSERT(set0.Get<int>() == 5);
     ASSERT(set0.Get<float>() == 10.0f);
   }
 
   //############################################################################
-  void TestTypeSetCopy(void)
+  void TestUniqueTupleCopy(void)
   {
-    TypeSet<int, float> set0(5, 10.0f);
-    TypeSet<int, float> set1 = set0;
+    UniqueTuple<int, float> set0(5, 10.0f);
+    UniqueTuple<int, float> set1 = set0;
 
     ASSERT(set0 == set1);
     ASSERT(set0.Get<int>() == set1.Get<int>());
@@ -1342,13 +1342,13 @@ namespace
   }
 
   //############################################################################
-  void TestTypeSetMove(void)
+  void TestUniqueTupleMove(void)
   {
-    TypeSet<MoveTester> set0;
+    UniqueTuple<MoveTester> set0;
     ASSERT(set0.Get<MoveTester>().GetState() ==
       MoveTester::MoveStateDefaultConstructed);
 
-    TypeSet<MoveTester> set1 = std::move(set0);
+    UniqueTuple<MoveTester> set1 = std::move(set0);
     ASSERT(set0.Get<MoveTester>().GetState() ==
       MoveTester::MoveStatePilfered);
     ASSERT(set1.Get<MoveTester>().GetState() ==
@@ -1473,12 +1473,12 @@ namespace
   }
 
   //############################################################################
-  void TestTypeSets(void)
+  void TestUniqueTuples(void)
   {
-    TestTypeSetAccess();
-    TestTypeSetConstAccess();
-    TestTypeSetCopy();
-    TestTypeSetMove();
+    TestUniqueTupleAccess();
+    TestUniqueTupleConstAccess();
+    TestUniqueTupleCopy();
+    TestUniqueTupleMove();
   }
 }
 
@@ -1495,5 +1495,5 @@ void TestAllUtilities(void)
   TestExternals();
   TestWeakExternals();
   TestOptionals();
-  TestTypeSets();
+  TestUniqueTuples();
 }

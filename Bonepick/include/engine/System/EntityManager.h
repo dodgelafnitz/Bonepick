@@ -3,7 +3,7 @@
 
 #include "engine/Utility/Containers/Array.h"
 #include "engine/Utility/Containers/Optional.h"
-#include "engine/Utility/Containers/TypeSet.h"
+#include "engine/Utility/Containers/Tuple.h"
 #include "engine/Utility/TemplateTools.h"
 
 //##############################################################################
@@ -80,7 +80,7 @@ private:
 //  bool ContainsComponent(int entityId) const;
 //
 //private:
-//  TypeSet<EntityManager<Components>...>
+//  UniqueTuple<EntityManager<Components>...>
 //    componentManagers_;
 //
 //};
