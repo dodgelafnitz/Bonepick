@@ -17,10 +17,10 @@ public:
 
   ~ComponentManager(void) = default;
 
-  void AddEntity(void);
-  void AddEntity(T const & component);
+  void AddComponent(void);
+  void AddComponent(T const & component);
 
-  int EntityCount(void) const;
+  int ComponentCount(void) const;
 
   T const & GetComponent(int entityId) const;
   void SetComponent(int entityId, T const & component);
@@ -40,6 +40,7 @@ private:
 
   Array<Optional<T>> data_;
   Array<FutureData>  futureData_;
+  Array<Optional<T>> newData_;
 };
 
 //##############################################################################
@@ -77,66 +78,38 @@ private:
   void AddComponents(Component const & component,
     Remainder const & ... remainder);
 
+  void AddComponents(void);
+
   template <typename Component, typename ... Remainder>
-  void AddBlanks(Component const & component,
-    Remainder const & ... remainder);
+  void AddBlanks(TypeList<Component, Remainder...> const &);
+
+  void AddBlanks(TypeList<> const &);
+
+  template <typename Component, typename ... Remainder>
+  void AdvanceInternal(TypeList<Component, Remainder...> const &);
+
+  void AdvanceInternal(TypeList<> const &);
 
   UniqueTuple<ComponentManager<Components>...> componentManagers_;
 };
 
 //##############################################################################
-//template <typename ... Components>
-//class EntityManager
-//{
-//public:
-//  EntityManager(void) = default;
-//  EntityManager(EntityManager const &) = default;
-//  EntityManager(EntityManager &&) = default;
-//
-//  ~EntityManager(void) = default;
-//
-//  void AddEntity(void);
-//
-//  template <typename ... EntityComponents>
-//  void AddEntity(EntityComponents const & ... components);
-//
-//  int EntityCount(void) const;
-//
-//  template <typename U>
-//  U const & GetComponent(int entityId) const;
-//
-//  template <typename U>
-//  void SetComponent(int entityId, U const & component);
-//
-//  template <typename U>
-//  void UpdateComponent(int entityId, U const & component);
-//
-//  template <typename U>
-//  bool ContainsComponent(int entityId) const;
-//
-//private:
-//  UniqueTuple<EntityManager<Components>...>
-//    componentManagers_;
-//
-//};
-
-//##############################################################################
 template <typename T>
-void ComponentManager<T>::AddEntity(void)
+void ComponentManager<T>::AddComponent(void)
 {
-  data_.EmplaceBack();
+  newData_.EmplaceBack();
 }
 
 //##############################################################################
 template <typename T>
-void ComponentManager<T>::AddEntity(T const & component)
+void ComponentManager<T>::AddComponent(T const & component)
 {
-  data_.EmplaceBack(component);
+  newData_.EmplaceBack(component);
 }
 
 //##############################################################################
 template <typename T>
-int ComponentManager<T>::EntityCount(void) const
+int ComponentManager<T>::ComponentCount(void) const
 {
   return data_.Size();
 }
@@ -181,7 +154,7 @@ void ComponentManager<T>::UpdateComponent(int entityId, T const & component)
   if (futureComponent)
     futureComponent->component = component;
   else
-    SetComponent<U>(entityId, component);
+    SetComponent(entityId, component);
 }
 
 //##############################################################################
@@ -202,6 +175,11 @@ void ComponentManager<T>::Advance(void)
     data_[nextData.entityId] = nextData.component;
 
   futureData_.Clear();
+
+  for (Optional<T> nextData : newData_)
+    data_.EmplaceBack(nextData);
+
+  newData_.Clear();
 }
 
 //##############################################################################
@@ -213,51 +191,125 @@ ComponentManager<T>::FutureData::FutureData(int entityId, T const & component) :
 
 //##############################################################################
 template <typename ... Components>
-template <typename Component, typename ... Remainder>
-void EntityManager<Components>::AddEntity(
+template <typename ... EntityComponents>
+void EntityManager<Components...>::AddEntity(
   EntityComponents const & ... components)
 {
-  static_assert(TypeIsInTypes<EntityComponents, Components>::value && ...);
+  static_assert(TypeSetIsSubset<
+    TypeSet<EntityComponents...>,
+    TypeSet<Components...>
+  >::value);
 
-  using 
+  using EntityComponentSet = TypeSet<EntityComponents...>;
+  using ComponentSet       = TypeSet<Components...>;
 
-  AddEntityInternal
+  using EmptyCompSet =
+    TypeSetComplement<ComponentSet, EntityComponentSet>::type;
 
+  AddComponents(components...);
+  AddBlanks(EmptyCompSet());
 }
 
 //##############################################################################
 template <typename ... Components>
-int EntityManager<Components>::EntityCount(void) const
+int EntityManager<Components...>::EntityCount(void) const
 {
+  if constexpr (sizeof...(Components) == 0)
+    return 0;
+  else
+    return componentManagers_.Get<0>().ComponentCount();
 }
 
 //##############################################################################
 template <typename ... Components>
 template <typename U>
-U const & EntityManager<Components>::GetComponent(int entityId) const
+U const & EntityManager<Components...>::GetComponent(int entityId) const
 {
+  return componentManagers_.Get<ComponentManager<U>>().GetComponent(entityId);
 }
 
 //##############################################################################
 template <typename ... Components>
 template <typename U>
-void EntityManager<Components>::SetComponent(int entityId, U const & component)
+void
+  EntityManager<Components...>::SetComponent(int entityId, U const & component)
 {
+  componentManagers_.Get<ComponentManager<U>>().SetComponent(
+    entityId, component);
 }
 
 //##############################################################################
 template <typename ... Components>
 template <typename U>
-void EntityManager<Components>::UpdateComponent(
+void EntityManager<Components...>::UpdateComponent(
   int entityId, U const & component)
 {
+  componentManagers_.Get<ComponentManager<U>>().UpdateComponent(
+    entityId, component);
 }
 
 //##############################################################################
 template <typename ... Components>
 template <typename U>
-bool EntityManager<Components>::ContainsComponent(int entityId) const
+bool EntityManager<Components...>::ContainsComponent(int entityId) const
 {
+  return
+    componentManagers_.Get<ComponentManager<U>>().ContainsComponent(entityId);
 }
+
+//##############################################################################
+template <typename ... Components>
+void EntityManager<Components...>::Advance()
+{
+  AdvanceInternal(TypeSet<Components...>());
+}
+
+//##############################################################################
+template <typename ... Components>
+template <typename Component, typename ... Remainder>
+void EntityManager<Components...>::AddComponents(Component const & component,
+  Remainder const & ... remainder)
+{
+  componentManagers_.Get<ComponentManager<Component>>().AddComponent(component);
+
+  AddComponents(remainder...);
+}
+
+//##############################################################################
+template <typename ... Components>
+void EntityManager<Components...>::AddComponents(void)
+{}
+
+//##############################################################################
+template <typename ... Components>
+template <typename Component, typename ... Remainder>
+void EntityManager<Components...>::AddBlanks(
+  TypeList<Component, Remainder...> const &)
+{
+  componentManagers_.Get<ComponentManager<Component>>().AddComponent();
+
+  AddBlanks(TypeSet<Remainder...>());
+}
+
+//##############################################################################
+template <typename ... Components>
+void EntityManager<Components...>::AddBlanks(TypeList<> const &)
+{}
+
+//##############################################################################
+template <typename ... Components>
+template <typename Component, typename ... Remainder>
+void EntityManager<Components...>::AdvanceInternal(
+  TypeList<Component, Remainder...> const &)
+{
+  componentManagers_.Get<ComponentManager<Component>>().Advance();
+
+  AdvanceInternal(TypeSet<Remainder...>());
+}
+
+//##############################################################################
+template <typename ... Components>
+void EntityManager<Components...>::AdvanceInternal(TypeList<> const &)
+{}
 
 #endif
