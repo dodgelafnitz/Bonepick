@@ -130,14 +130,23 @@ void Array<T, SizeType>::Erase(T const * value)
 template <typename T, typename SizeType>
 void Array<T, SizeType>::Erase(SizeType index)
 {
-  data_.erase(std::begin() + index);
+  ASSERT(!Empty());
+  ASSERT(index < Size());
+  ASSERT(index >= 0);
+
+  data_.erase(data_.begin() + index);
 }
 
 //##############################################################################
 template <typename T, typename SizeType>
 SizeType Array<T, SizeType>::GetIndex(T const * location) const
 {
-  return SizeType(location - std::data());
+  SizeType index = SizeType(location - Begin());
+
+  ASSERT(index < Size());
+  ASSERT(index >= 0);
+
+  return index;
 }
 
 //##############################################################################

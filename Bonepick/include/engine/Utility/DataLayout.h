@@ -20,7 +20,7 @@ public:
 
   void Add(Token key, std::type_index type, unsigned offset);
 
-  bool Has(Token key) const;
+  bool Contains(Token key) const;
   std::type_index GetType(Token key) const;
   unsigned GetOffset(Token key) const;
 

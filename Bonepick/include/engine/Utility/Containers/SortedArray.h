@@ -30,10 +30,16 @@ public:
   SortedArrayBase(SortedArrayBase && arr) = default;
   SortedArrayBase(std::initializer_list<StoreType> const & init);
 
+  void Reserve(SizeType index);
+
   template <typename ... Params>
   void Emplace(Params && ... params);
 
+  bool Empty(void) const;
   SizeType Size(void) const;
+
+  void Erase(SizeType index);
+  void Erase(Type * location);
 
   void Clear(void);
 
@@ -42,8 +48,10 @@ public:
   template <typename U>
   ConstType * Find(U const & key) const;
 
+  SizeType GetIndex(ConstType * location) const;
+
   template <typename U>
-  bool Has(U const & key) const;
+  bool Contains(U const & key) const;
 
   SortedArrayBase & operator =(SortedArrayBase const & arr) = default;
   SortedArrayBase & operator =(SortedArrayBase && arr) = default;
@@ -67,7 +75,7 @@ private:
 
 //##############################################################################
 template <typename Key, typename Value, typename Pred = std::less<Key>,
-  typename SizeType = unsigned>
+  typename SizeType = int>
 using ArrayMap = SortedArrayBase<KeyValuePair<Key, Value, Pred, false>,
   KeyValuePair<Key, Value, Pred, true>,
   typename KeyValuePair<Key, Value, Pred, false>::SortingPredicate,
@@ -75,7 +83,7 @@ using ArrayMap = SortedArrayBase<KeyValuePair<Key, Value, Pred, false>,
 
 //##############################################################################
 template <typename Key, typename Pred = std::less<Key>,
-  typename SizeType = unsigned>
+  typename SizeType = int>
 using SortedArray = SortedArrayBase<Key, Key, Pred, true, SizeType>;
 
 //##############################################################################
@@ -86,6 +94,15 @@ SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::
 {
   for (auto && value : init)
     Emplace(value);
+}
+
+//##############################################################################
+template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
+  typename SizeType>
+void SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::Reserve(
+  SizeType capacity)
+{
+  data_.Reserve(capacity);
 }
 
 //##############################################################################
@@ -113,6 +130,34 @@ SizeType
   const
 {
   return SizeType(data_.Size());
+}
+
+//##############################################################################
+template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
+  typename SizeType>
+bool
+  SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::Empty(void)
+  const
+{
+  return data_.Size() == SizeType(0);
+}
+
+//##############################################################################
+template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
+  typename SizeType>
+void SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::Erase(
+  SizeType index)
+{
+  data_.Erase(index);
+}
+
+//##############################################################################
+template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
+  typename SizeType>
+void SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::Erase(
+  Type * location)
+{
+  data_.Erase(location);
 }
 
 //##############################################################################
@@ -154,8 +199,17 @@ typename SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::
 //##############################################################################
 template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
   typename SizeType>
+SizeType SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::
+  GetIndex(ConstType * location) const
+{
+  return data_.GetIndex(location);
+}
+
+//##############################################################################
+template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
+  typename SizeType>
 template <typename U>
-bool SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::Has(
+bool SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::Contains(
   U const & key) const
 {
   return Find(key) != nullptr;

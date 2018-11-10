@@ -18,15 +18,15 @@ void DataLayout::Add(Token key, std::type_index type, unsigned offset)
 }
 
 //##############################################################################
-bool DataLayout::Has(Token key) const
+bool DataLayout::Contains(Token key) const
 {
-  return layout_.Has(key);
+  return layout_.Contains(key);
 }
 
 //##############################################################################
 std::type_index DataLayout::GetType(Token key) const
 {
-  ASSERT(layout_.Has(key));
+  ASSERT(layout_.Contains(key));
 
   return layout_.Find(key)->value.type;
 }
@@ -34,7 +34,7 @@ std::type_index DataLayout::GetType(Token key) const
 //##############################################################################
 unsigned DataLayout::GetOffset(Token key) const
 {
-  ASSERT(layout_.Has(key));
+  ASSERT(layout_.Contains(key));
 
   return layout_.Find(key)->value.offset;
 }
