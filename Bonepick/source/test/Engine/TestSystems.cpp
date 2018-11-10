@@ -157,17 +157,16 @@ namespace
   {
     EntityManager<float, int> entMan;
 
-    entMan.AddEntity(2.0f);
-    entMan.AddEntity(8, 0.5f);
+    int const entIndex = entMan.AddEntity(2.0f);
 
-    Entity<float, int> ent(entMan, 1);
+    Entity<float, int> ent(entMan, entIndex);
 
     EXPECT_ERROR(ent.GetComponent<float>(););
 
     entMan.Advance();
 
-    ASSERT(ent.GetComponent<float>() == 0.5f);
-    ASSERT(ent.GetComponent<int>() == 8);
+    ASSERT(ent.GetComponent<float>() == 2.0f);
+    EXPECT_ERROR(ent.GetComponent<int>(););
   }
 
   //############################################################################
