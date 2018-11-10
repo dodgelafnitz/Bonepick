@@ -1,0 +1,4 @@
+#ifndef ENGINE_SYSTEM_ENTITY_H
+#define ENGINE_SYSTEM_ENTITY_H
+
+#endif

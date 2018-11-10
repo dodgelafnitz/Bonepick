@@ -3,6 +3,7 @@
 
 #include "engine/Utility/Containers/Array.h"
 #include "engine/Utility/Containers/Optional.h"
+#include "engine/Utility/Containers/SortedArray.h"
 #include "engine/Utility/Containers/Tuple.h"
 #include "engine/Utility/TemplateTools.h"
 
@@ -17,14 +18,12 @@ public:
 
   ~ComponentManager(void) = default;
 
-  void AddComponent(void);
-  void AddComponent(T const & component);
-
-  int ComponentCount(void) const;
+  void AddComponent(int entityId, T const & component);
 
   T const & GetComponent(int entityId) const;
   void SetComponent(int entityId, T const & component);
   void UpdateComponent(int entityId, T const & component);
+  void DestroyComponent(int entityId);
   bool ContainsComponent(int entityId) const;
 
   void Advance(void);
@@ -39,8 +38,11 @@ private:
   };
 
   Array<Optional<T>> data_;
+  Array<FutureData>  newData_;
   Array<FutureData>  futureData_;
-  Array<Optional<T>> newData_;
+  Array<int>         enititiesToDestroy_;
+  Array<int>         emptyComponentSlots_;
+  ArrayMap<int, int> componentIds_;
 };
 
 //##############################################################################
@@ -55,9 +57,10 @@ public:
   ~EntityManager(void) = default;
 
   template <typename ... EntityComponents>
-  void AddEntity(EntityComponents const & ... components);
+  int AddEntity(EntityComponents const & ... components);
 
   int EntityCount(void) const;
+  int GetEntityId(int entityIndex) const;
 
   template <typename U>
   U const & GetComponent(int entityId) const;
@@ -68,65 +71,67 @@ public:
   template <typename U>
   void UpdateComponent(int entityId, U const & component);
 
+  void DestroyEntity(int entityId);
+
   template <typename U>
   bool ContainsComponent(int entityId) const;
+
+  bool DoesEntityExist(int entityId) const;
 
   void Advance(void);
 
 private:
+  int GetNewEntityId(void);
+
   template <typename Component, typename ... Remainder>
-  void AddComponents(Component const & component,
+  void AddComponents(int entityId, Component const & component,
     Remainder const & ... remainder);
 
-  void AddComponents(void);
-
-  template <typename Component, typename ... Remainder>
-  void AddBlanks(TypeList<Component, Remainder...> const &);
-
-  void AddBlanks(TypeList<> const &);
+  void AddComponents(int);
 
   template <typename Component, typename ... Remainder>
   void AdvanceInternal(TypeList<Component, Remainder...> const &);
 
   void AdvanceInternal(TypeList<> const &);
 
+  template <typename Component, typename ... Remainder>
+  void DestroyInternal(int entityId, TypeList<Component, Remainder...> const &);
+
+  void DestroyInternal(int, TypeList<> const &);
+
   UniqueTuple<ComponentManager<Components>...> componentManagers_;
+  SortedArray<int>                             entityIds_;
+  Array<int>                                   newEntityIds_;
+  int                                          nextEntityId_       = 1;
+  Array<int>                                   enititiesToDestroy_;
 };
 
 //##############################################################################
 template <typename T>
-void ComponentManager<T>::AddComponent(void)
+void ComponentManager<T>::AddComponent(int entityId, T const & component)
 {
-  newData_.EmplaceBack();
-}
-
-//##############################################################################
-template <typename T>
-void ComponentManager<T>::AddComponent(T const & component)
-{
-  newData_.EmplaceBack(component);
-}
-
-//##############################################################################
-template <typename T>
-int ComponentManager<T>::ComponentCount(void) const
-{
-  return data_.Size();
+  ASSERT(!componentIds_.Contains(entityId));
+  newData_.EmplaceBack(entityId, component);
 }
 
 //##############################################################################
 template <typename T>
 T const & ComponentManager<T>::GetComponent(int entityId) const
 {
-  return *data_[entityId];
+  ASSERT(componentIds_.Contains(entityId));
+
+  return *data_[componentIds_.Find(entityId)->value];
 }
 
 //##############################################################################
 template <typename T>
 void ComponentManager<T>::SetComponent(int entityId, T const & component)
 {
-  ASSERT(entityId < data_.Size());
-  ASSERT(entityId >= 0);
+  ASSERT(componentIds_.Contains(entityId));
+  ON_DEBUG(int const componentId = componentIds_.Find(entityId)->value;)
+
+  ASSERT(componentId < data_.Size());
+  ASSERT(componentId >= 0);
 
   ASSERT(!futureData_.Contains(
     [&entityId](FutureData const & val)
@@ -142,8 +147,11 @@ void ComponentManager<T>::SetComponent(int entityId, T const & component)
 template <typename T>
 void ComponentManager<T>::UpdateComponent(int entityId, T const & component)
 {
-  ASSERT(entityId < data_.Size());
-  ASSERT(entityId >= 0);
+  ASSERT(componentIds_.Contains(entityId));
+  ON_DEBUG(int const componentId = componentIds_.Find(entityId)->value;)
+
+  ASSERT(componentId < data_.Size());
+  ASSERT(componentId >= 0);
 
   FutureData * futureComponent = futureData_.FindFirst(
     [&entityId](FutureData const & val)
@@ -159,12 +167,25 @@ void ComponentManager<T>::UpdateComponent(int entityId, T const & component)
 
 //##############################################################################
 template <typename T>
+void ComponentManager<T>::DestroyComponent(int entityId)
+{
+  if (componentIds_.Contains(entityId))
+  {
+    ON_DEBUG(int const componentId = componentIds_.Find(entityId)->value;)
+
+    ASSERT(componentId < data_.Size());
+    ASSERT(componentId >= 0);
+
+    if (!enititiesToDestroy_.Contains(entityId))
+      enititiesToDestroy_.EmplaceBack(entityId);
+  }
+}
+
+//##############################################################################
+template <typename T>
 bool ComponentManager<T>::ContainsComponent(int entityId) const
 {
-  ASSERT(entityId < data_.Size());
-  ASSERT(entityId >= 0);
-
-  return data_[entityId].Ptr() != nullptr;
+  return componentIds_.Contains(entityId);
 }
 
 //##############################################################################
@@ -172,12 +193,46 @@ template <typename T>
 void ComponentManager<T>::Advance(void)
 {
   for (FutureData nextData : futureData_)
-    data_[nextData.entityId] = nextData.component;
+  {
+    ASSERT(componentIds_.Contains(nextData.entityId));
+    int const componentId = componentIds_.Find(nextData.entityId)->value;
+    data_[componentId] = nextData.component;
+  }
 
   futureData_.Clear();
 
-  for (Optional<T> nextData : newData_)
-    data_.EmplaceBack(nextData);
+  for (int entityId : enititiesToDestroy_)
+  {
+    ASSERT(componentIds_.Contains(entityId));
+    int const componentId = componentIds_.Find(entityId)->value;
+    data_[componentId].Clear();
+    emptyComponentSlots_.EmplaceBack(componentId);
+  }
+
+  enititiesToDestroy_.Clear();
+
+  for (FutureData newData : newData_)
+  {
+    if (!emptyComponentSlots_.Empty())
+    {
+      int const componentId =
+        emptyComponentSlots_[emptyComponentSlots_.Size() - 1];
+      emptyComponentSlots_.PopBack();
+
+      componentIds_.Emplace(newData.entityId, componentId);
+
+      ASSERT(componentId < data_.Size());
+      ASSERT(componentId >= 0);
+      ASSERT(data_[componentId].Ptr() == nullptr);
+
+      data_[componentId].Emplace(newData.component);
+    }
+    else
+    {
+      componentIds_.Emplace(newData.entityId, data_.Size());
+      data_.EmplaceBack(newData.component);
+    }
+  }
 
   newData_.Clear();
 }
@@ -192,7 +247,7 @@ ComponentManager<T>::FutureData::FutureData(int entityId, T const & component) :
 //##############################################################################
 template <typename ... Components>
 template <typename ... EntityComponents>
-void EntityManager<Components...>::AddEntity(
+int EntityManager<Components...>::AddEntity(
   EntityComponents const & ... components)
 {
   static_assert(TypeSetIsSubset<
@@ -200,24 +255,30 @@ void EntityManager<Components...>::AddEntity(
     TypeSet<Components...>
   >::value);
 
-  using EntityComponentSet = TypeSet<EntityComponents...>;
-  using ComponentSet       = TypeSet<Components...>;
+  static_assert(sizeof...(EntityComponents) > 0);
 
-  using EmptyCompSet =
-    TypeSetComplement<ComponentSet, EntityComponentSet>::type;
+  int const entityId = GetNewEntityId();
 
-  AddComponents(components...);
-  AddBlanks(EmptyCompSet());
+  AddComponents(entityId, components...);
+
+  return entityId;
 }
 
 //##############################################################################
 template <typename ... Components>
 int EntityManager<Components...>::EntityCount(void) const
 {
-  if constexpr (sizeof...(Components) == 0)
-    return 0;
-  else
-    return componentManagers_.Get<0>().ComponentCount();
+  return entityIds_.Size();
+}
+
+//##############################################################################
+template <typename ... Components>
+int EntityManager<Components...>::GetEntityId(int entityIndex) const
+{
+  ASSERT(entityIndex < entityIds_.Size());
+  ASSERT(entityIndex >= 0);
+
+  return entityIds_[entityIndex];
 }
 
 //##############################################################################
@@ -248,52 +309,88 @@ void EntityManager<Components...>::UpdateComponent(
     entityId, component);
 }
 
+
+//##############################################################################
+template <typename ... Components>
+void EntityManager<Components...>::DestroyEntity(int entityId)
+{
+  ASSERT(entityIds_.Contains(entityId));
+
+  if (!enititiesToDestroy_.Contains(entityId))
+  {
+    enititiesToDestroy_.EmplaceBack(entityId);
+
+    DestroyInternal(entityId, TypeSet<Components...>());
+  }
+}
+
 //##############################################################################
 template <typename ... Components>
 template <typename U>
 bool EntityManager<Components...>::ContainsComponent(int entityId) const
 {
+  ASSERT(entityIds_.Contains(entityId));
+
   return
     componentManagers_.Get<ComponentManager<U>>().ContainsComponent(entityId);
 }
 
 //##############################################################################
 template <typename ... Components>
+bool EntityManager<Components...>::DoesEntityExist(int entityId) const
+{
+  return entityIds_.Contains(entityId);
+}
+
+//##############################################################################
+template <typename ... Components>
 void EntityManager<Components...>::Advance()
 {
+  for (int entityId : enititiesToDestroy_)
+  {
+    ASSERT(entityIds_.Contains(entityId));
+    entityIds_.Erase(entityIds_.Find(entityId));
+  }
+
+  enititiesToDestroy_.Clear();
+
+  entityIds_.Reserve(entityIds_.Size() + newEntityIds_.Size());
+
+  for (int entityId : newEntityIds_)
+    entityIds_.Emplace(entityId);
+
+  newEntityIds_.Clear();
+
   AdvanceInternal(TypeSet<Components...>());
 }
 
 //##############################################################################
 template <typename ... Components>
-template <typename Component, typename ... Remainder>
-void EntityManager<Components...>::AddComponents(Component const & component,
-  Remainder const & ... remainder)
+int EntityManager<Components...>::GetNewEntityId(void)
 {
-  componentManagers_.Get<ComponentManager<Component>>().AddComponent(component);
+  if (nextEntityId_ == 0)
+    ++nextEntityId_;
 
-  AddComponents(remainder...);
+  newEntityIds_.EmplaceBack(nextEntityId_);
+
+  return nextEntityId_++;
 }
 
 //##############################################################################
 template <typename ... Components>
-void EntityManager<Components...>::AddComponents(void)
-{}
-
-//##############################################################################
-template <typename ... Components>
 template <typename Component, typename ... Remainder>
-void EntityManager<Components...>::AddBlanks(
-  TypeList<Component, Remainder...> const &)
+void EntityManager<Components...>::AddComponents(int entityId,
+  Component const & component, Remainder const & ... remainder)
 {
-  componentManagers_.Get<ComponentManager<Component>>().AddComponent();
+  componentManagers_.Get<ComponentManager<Component>>().AddComponent(entityId,
+    component);
 
-  AddBlanks(TypeSet<Remainder...>());
+  AddComponents(entityId, remainder...);
 }
 
 //##############################################################################
 template <typename ... Components>
-void EntityManager<Components...>::AddBlanks(TypeList<> const &)
+void EntityManager<Components...>::AddComponents(int)
 {}
 
 //##############################################################################
@@ -310,6 +407,23 @@ void EntityManager<Components...>::AdvanceInternal(
 //##############################################################################
 template <typename ... Components>
 void EntityManager<Components...>::AdvanceInternal(TypeList<> const &)
+{}
+
+//##############################################################################
+template <typename ... Components>
+template <typename Component, typename ... Remainder>
+void EntityManager<Components...>::DestroyInternal(int entityId,
+  TypeList<Component, Remainder...> const &)
+{
+  componentManagers_.Get<ComponentManager<Component>>().DestroyComponent(
+    entityId);
+
+  DestroyInternal(entityId, TypeSet<Remainder...>());
+}
+
+//##############################################################################
+template <typename ... Components>
+void EntityManager<Components...>::DestroyInternal(int, TypeList<> const &)
 {}
 
 #endif

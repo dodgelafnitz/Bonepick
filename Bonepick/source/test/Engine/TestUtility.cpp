@@ -251,7 +251,7 @@ namespace
   }
 
   //############################################################################
-  void TestSortedArrayHas(void)
+  void TestSortedArrayContains(void)
   {
     SortedArray<int> arr;
 
@@ -260,8 +260,8 @@ namespace
     arr.Emplace(4);
     arr.Emplace(21);
 
-    ASSERT(arr.Has(4));
-    ASSERT(!arr.Has(7));
+    ASSERT(arr.Contains(4));
+    ASSERT(!arr.Contains(7));
   }
 
   //############################################################################
@@ -275,7 +275,7 @@ namespace
     ASSERT(arr.End() == ref.End());
     ASSERT(std::end(arr) == std::end(ref));
 
-    for (unsigned i = 0; i < arr.Size(); ++i)
+    for (int i = 0; i < arr.Size(); ++i)
       ASSERT(&arr[i] == &ref[i]);
 
     ASSERT(arr.Find(5) == ref.Find(5));
@@ -428,7 +428,7 @@ namespace
   }
 
   //############################################################################
-  void TestArrayMapHas(void)
+  void TestArrayMapContains(void)
   {
     ArrayMap<int, std::string> map;
 
@@ -437,8 +437,8 @@ namespace
     map.Emplace(4, "cheese");
     map.Emplace(21, "dip");
 
-    ASSERT(map.Has(4));
-    ASSERT(!map.Has(7));
+    ASSERT(map.Contains(4));
+    ASSERT(!map.Contains(7));
   }
 
   //############################################################################
@@ -460,7 +460,7 @@ namespace
     ASSERT(map.End() == ref.End());
     ASSERT(std::end(map) == std::end(ref));
 
-    for (unsigned i = 0; i < map.Size(); ++i)
+    for (int i = 0; i < map.Size(); ++i)
       ASSERT(&map[i] == &ref[i]);
 
     ASSERT(map.Find(4) == ref.Find(4));
@@ -477,7 +477,7 @@ namespace
     layout.Add(pos, typeIndex, 0);
 
     ASSERT(layout.Size() == 1);
-    ASSERT(layout.Has(pos));
+    ASSERT(layout.Contains(pos));
     ASSERT(layout.GetType(pos) == typeIndex);
     ASSERT(layout.GetOffset(pos) == 0);
   }
@@ -499,10 +499,10 @@ namespace
     layout.Add(posZ, floatType, sizeof(float) * 2);
 
     ASSERT(layout.Size() == 4);
-    ASSERT(layout.Has(pos));
-    ASSERT(layout.Has(posX));
-    ASSERT(layout.Has(posY));
-    ASSERT(layout.Has(posZ));
+    ASSERT(layout.Contains(pos));
+    ASSERT(layout.Contains(posX));
+    ASSERT(layout.Contains(posY));
+    ASSERT(layout.Contains(posZ));
     ASSERT(layout.GetType(pos) == vecType);
     ASSERT(layout.GetType(posX) == floatType);
     ASSERT(layout.GetType(posY) == floatType);
@@ -571,10 +571,10 @@ namespace
     layout1 = layout0;
 
     ASSERT(layout0.Size() == 4);
-    ASSERT(layout0.Has(pos));
-    ASSERT(layout0.Has(posX));
-    ASSERT(layout0.Has(posY));
-    ASSERT(layout0.Has(posZ));
+    ASSERT(layout0.Contains(pos));
+    ASSERT(layout0.Contains(posX));
+    ASSERT(layout0.Contains(posY));
+    ASSERT(layout0.Contains(posZ));
     ASSERT(layout0.GetType(pos) == vecType);
     ASSERT(layout0.GetType(posX) == floatType);
     ASSERT(layout0.GetType(posY) == floatType);
@@ -585,10 +585,10 @@ namespace
     ASSERT(layout0.GetOffset(posZ) == sizeof(float) * 2);
 
     ASSERT(layout1.Size() == 4);
-    ASSERT(layout1.Has(pos));
-    ASSERT(layout1.Has(posX));
-    ASSERT(layout1.Has(posY));
-    ASSERT(layout1.Has(posZ));
+    ASSERT(layout1.Contains(pos));
+    ASSERT(layout1.Contains(posX));
+    ASSERT(layout1.Contains(posY));
+    ASSERT(layout1.Contains(posZ));
     ASSERT(layout1.GetType(pos) == vecType);
     ASSERT(layout1.GetType(posX) == floatType);
     ASSERT(layout1.GetType(posY) == floatType);
@@ -605,10 +605,10 @@ namespace
     ASSERT(layout0.Size() == 0);
 
     ASSERT(layout1.Size() == 4);
-    ASSERT(layout1.Has(pos));
-    ASSERT(layout1.Has(posX));
-    ASSERT(layout1.Has(posY));
-    ASSERT(layout1.Has(posZ));
+    ASSERT(layout1.Contains(pos));
+    ASSERT(layout1.Contains(posX));
+    ASSERT(layout1.Contains(posY));
+    ASSERT(layout1.Contains(posZ));
     ASSERT(layout1.GetType(pos) == vecType);
     ASSERT(layout1.GetType(posX) == floatType);
     ASSERT(layout1.GetType(posY) == floatType);
@@ -1378,7 +1378,7 @@ namespace
     TestSortedArrayValuesAddedOutOfOrder();
     TestSortedArrayNoDuplicateValues();
     TestSortedArrayFind();
-    TestSortedArrayHas();
+    TestSortedArrayContains();
     TestSortedArrayConstAccess();
     TestSortedArrayAssignment();
   }
@@ -1391,7 +1391,7 @@ namespace
     TestArrayMapValuesAddedOutOfOrder();
     TestArrayMapNoDuplicateValues();
     TestArrayMapFind();
-    TestArrayMapHas();
+    TestArrayMapContains();
     TestArrayMapConstAccess();
   }
 
