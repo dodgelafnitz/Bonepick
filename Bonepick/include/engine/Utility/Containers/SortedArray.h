@@ -157,7 +157,7 @@ template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
 void SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::Erase(
   Type * location)
 {
-  data_.Erase(location);
+  data_.Erase(reinterpret_cast<StoreType const *>(location));
 }
 
 //##############################################################################
@@ -180,7 +180,7 @@ typename SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::
   SizeType index = FindDesiredLocation(key);
 
   if (index < Size() && AreEqual(data_[index], key))
-    return &static_cast<UseType &>(data_[index]);
+    return reinterpret_cast<Type *>(&data_[index]);
   else
     return nullptr;
 }
