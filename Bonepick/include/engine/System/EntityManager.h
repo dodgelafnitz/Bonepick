@@ -22,7 +22,7 @@ public:
 
   T const & GetComponent(int entityId) const;
   void SetComponent(int entityId, T const & component);
-  void UpdateComponent(int entityId, T const & component);
+  T & UpdateComponent(int entityId);
   void DestroyComponent(int entityId);
   bool ContainsComponent(int entityId) const;
 
@@ -59,6 +59,12 @@ public:
   template <typename ... EntityComponents>
   int AddEntity(EntityComponents const & ... components);
 
+  template <typename U>
+  void AddComponent(int entityId, U const & component);
+
+  template <typename U>
+  void RemoveComponent(int entityId);
+
   int EntityCount(void) const;
   int GetEntityId(int entityIndex) const;
 
@@ -69,7 +75,7 @@ public:
   void SetComponent(int entityId, U const & component);
 
   template <typename U>
-  void UpdateComponent(int entityId, U const & component);
+  U & UpdateComponent(int entityId);
 
   void DestroyEntity(int entityId);
 
@@ -145,7 +151,7 @@ void ComponentManager<T>::SetComponent(int entityId, T const & component)
 
 //##############################################################################
 template <typename T>
-void ComponentManager<T>::UpdateComponent(int entityId, T const & component)
+T & ComponentManager<T>::UpdateComponent(int entityId)
 {
   ASSERT(componentIds_.Contains(entityId));
   ON_DEBUG(int const componentId = componentIds_.Find(entityId)->value;)
@@ -160,9 +166,15 @@ void ComponentManager<T>::UpdateComponent(int entityId, T const & component)
     });
 
   if (futureComponent)
-    futureComponent->component = component;
+    return futureComponent->component;
+  else if constexpr(std::is_default_constructible_v<T>)
+  {
+    SetComponent(entityId, T());
+    ASSERT(futureData_[futureData_.Size() - 1].entityId == entityId);
+    return futureData_[futureData_.Size() - 1].component;
+  }
   else
-    SetComponent(entityId, component);
+    ERROR_LOG("Can't construct a default object to return.");
 }
 
 //##############################################################################
@@ -204,9 +216,11 @@ void ComponentManager<T>::Advance(void)
   for (int entityId : enititiesToDestroy_)
   {
     ASSERT(componentIds_.Contains(entityId));
-    int const componentId = componentIds_.Find(entityId)->value;
+    auto * component = componentIds_.Find(entityId);
+    int const componentId = component->value;
     data_[componentId].Clear();
     emptyComponentSlots_.EmplaceBack(componentId);
+    componentIds_.Erase(component);
   }
 
   enititiesToDestroy_.Clear();
@@ -266,6 +280,23 @@ int EntityManager<Components...>::AddEntity(
 
 //##############################################################################
 template <typename ... Components>
+template <typename U>
+void EntityManager<Components...>::AddComponent(int entityId,
+  U const & component)
+{
+  AddComponents(entityId, component);
+}
+
+//##############################################################################
+template <typename ... Components>
+template <typename U>
+void EntityManager<Components...>::RemoveComponent(int entityId)
+{
+  DestroyInternal(entityId, TypeList<U>());
+}
+
+//##############################################################################
+template <typename ... Components>
 int EntityManager<Components...>::EntityCount(void) const
 {
   return entityIds_.Size();
@@ -302,11 +333,10 @@ void
 //##############################################################################
 template <typename ... Components>
 template <typename U>
-void EntityManager<Components...>::UpdateComponent(
-  int entityId, U const & component)
+U & EntityManager<Components...>::UpdateComponent(int entityId)
 {
-  componentManagers_.Get<ComponentManager<U>>().UpdateComponent(
-    entityId, component);
+  return
+    componentManagers_.Get<ComponentManager<U>>().UpdateComponent(entityId);
 }
 
 

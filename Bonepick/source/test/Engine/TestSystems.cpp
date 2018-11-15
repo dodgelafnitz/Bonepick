@@ -26,7 +26,6 @@ namespace
     ASSERT(entMan.ContainsComponent<float>(ent0));
     ASSERT(entMan.ContainsComponent<float>(ent1));
     EXPECT_ERROR(entMan.ContainsComponent<float>(nonEnt););
-
     EXPECT_ERROR(entMan.GetComponent<float>(nonEnt););
 
     entMan.SetComponent<float>(ent0, 4.0f);
@@ -36,8 +35,8 @@ namespace
     entMan.SetComponent<float>(ent0, 2.0f);
     ASSERT(entMan.GetComponent<float>(ent0) == 4.0f);
     EXPECT_ERROR(entMan.SetComponent<float>(ent0, 3.0f););
-    entMan.UpdateComponent<float>(ent0, 3.5f);
-    entMan.UpdateComponent<float>(ent1, 5.5f);
+    entMan.UpdateComponent<float>(ent0) = 3.5f;
+    entMan.UpdateComponent<float>(ent1) = 5.5f;
 
     entMan.Advance();
     ASSERT(entMan.GetComponent<float>(ent0) == 3.5f);
@@ -70,8 +69,8 @@ namespace
     ASSERT(entMan.ContainsComponent<bool>(ent1));
     ASSERT(entMan.ContainsComponent<bool>(ent2));
 
-    entMan.UpdateComponent<float>(ent1, 3.5f);
-    EXPECT_ERROR(entMan.UpdateComponent<bool>(ent0, true););
+    entMan.UpdateComponent<float>(ent1) = 3.5f;
+    EXPECT_ERROR(entMan.UpdateComponent<bool>(ent0););
 
     ASSERT(entMan.GetComponent<float>(ent0) == 4.0f);
     ASSERT(entMan.GetComponent<float>(ent1) == 2.0f);
@@ -84,6 +83,14 @@ namespace
     entMan.Advance();
 
     ASSERT(entMan.GetComponent<float>(ent1) == 3.5f);
+
+    entMan.AddComponent(ent1, 4);
+    entMan.RemoveComponent<bool>(ent1);
+
+    entMan.Advance();
+
+    ASSERT(entMan.GetComponent<int>(ent1) == 4);
+    ASSERT(!entMan.ContainsComponent<bool>(ent1));
   }
 
   //############################################################################
