@@ -115,6 +115,50 @@ namespace
   }
 
   //############################################################################
+  void TestEntityManagerGroupGetters(void)
+  {
+    using EntMan = EntityManager<float, int, bool>;
+
+    EntMan entMan;
+
+    int const ent0 = entMan.AddEntity(4.0f, 2);
+    int const ent1 = entMan.AddEntity(false, 2.0f);
+    int const ent2 = entMan.AddEntity(7, 3.0f, true);
+
+    entMan.Advance();
+
+    auto compArray = entMan.GetComponents<float, bool>();
+
+    SortedArray<int> const &     entityIds  = compArray.EntityIds();
+    Array<bool const *> const &  compBools  = compArray.Components<bool>();
+    Array<float const *> const & compFloats = compArray.Components<float>();
+
+    ASSERT(entityIds.Size() == 2);
+    ASSERT(compBools.Size() == 2);
+    ASSERT(compFloats.Size() == 2);
+
+    int const ents[2] = { ent1, ent2 };
+    bool found[2] = { false, false };
+
+    for (int i = 0; i < entityIds.Size(); ++i)
+    {
+      ASSERT(entMan.GetEntityId(compBools[i]) == entityIds[i]);
+      ASSERT(entMan.GetEntityId(compFloats[i]) == entityIds[i]);
+
+      for (int j = 0; j < 2; ++j)
+      {
+        if (entityIds[i] == ents[j])
+        {
+          ASSERT(!found[j]);
+          found[j] = true;
+          break;
+        }
+      }
+    }
+    ASSERT(found[0] && found[1]);
+  }
+
+  //############################################################################
   void TestEntityManagerIdGetterHelper(
     EntityManager<float, int, bool> const & entMan)
   {
@@ -167,6 +211,10 @@ namespace
     int const entIndex = entMan.AddEntity(2.0f);
 
     Entity<float, int> ent(entMan, entIndex);
+    auto easyEnt = MakeEntity(entMan, entIndex);
+
+    ASSERT(easyEnt == ent);
+    ASSERT(!(easyEnt != ent));
 
     EXPECT_ERROR(ent.GetComponent<float>(););
 
@@ -182,6 +230,7 @@ namespace
     TestEntityManagerSingleComponent();
     TestEntityManagerMultipleComponents();
     TestEntityManagerDestruction();
+    TestEntityManagerGroupGetters();
   }
 
   //############################################################################

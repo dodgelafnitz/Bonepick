@@ -9,6 +9,16 @@
 
 //##############################################################################
 template <typename T>
+class ComponentManager;
+
+template <typename ... Components>
+class ComponentArray;
+
+template <typename ... Components>
+class EntityManager;
+
+//##############################################################################
+template <typename T>
 class ComponentManager
 {
 public:
@@ -26,7 +36,15 @@ public:
   void DestroyComponent(int entityId);
   bool ContainsComponent(int entityId) const;
 
+  int GetEntityId(T const * component) const;
+
   void Advance(void);
+
+  void GetComponents(Array<T const *> * components,
+    SortedArray<int> const & filterIds) const;
+
+  void GetAllComponents(Array<T const *> * components,
+    SortedArray<int> * entityIds) const;
 
 private:
   struct FutureData
@@ -38,11 +56,46 @@ private:
   };
 
   Array<Optional<T>> data_;
+  Array<int>         enitityIds_;
   Array<FutureData>  newData_;
   Array<FutureData>  futureData_;
   Array<int>         enititiesToDestroy_;
   Array<int>         emptyComponentSlots_;
   ArrayMap<int, int> componentIds_;
+};
+
+//##############################################################################
+template <typename ... EntityComponents>
+class ComponentArray
+{
+public:
+  SortedArray<int> const & EntityIds(void) const;
+
+  template <typename U>
+  Array<U const *> const & Components(void) const;
+
+  template <typename U>
+  void AddComponents(ComponentManager<U> const & compMan);
+
+  void FillWithNulls(void);
+
+private:
+  void RemoveEntity(int entityIndex);
+
+  template <typename Component, typename ... Remainder>
+  void RemoveEntityInternal(int entityIndex,
+    TypeList<Component, Remainder...> const &);
+
+  void RemoveEntityInternal(int entityIndex, TypeList<> const &);
+
+  template <typename Component, typename ... Remainder>
+  void FillWithNullsInternal(TypeList<Component, Remainder...> const &);
+
+  void FillWithNullsInternal(TypeList<> const &);
+
+  bool                                            initialized_ = false;
+  SortedArray<int>                                entityIds_;
+  UniqueTuple<Array<EntityComponents const *>...> components_;
 };
 
 //##############################################################################
@@ -69,6 +122,9 @@ public:
   int GetEntityId(int entityIndex) const;
 
   template <typename U>
+  int GetEntityId(U const * component) const;
+
+  template <typename U>
   U const & GetComponent(int entityId) const;
 
   template <typename U>
@@ -76,6 +132,9 @@ public:
 
   template <typename U>
   U & UpdateComponent(int entityId);
+
+  template <typename ... EntityComponents>
+  ComponentArray<Components ...> GetComponents(void) const;
 
   void DestroyEntity(int entityId);
 
@@ -99,6 +158,13 @@ private:
   void AdvanceInternal(TypeList<Component, Remainder...> const &);
 
   void AdvanceInternal(TypeList<> const &);
+
+  template <typename Component, typename ... Remainder>
+  void GetComponentsInternal(ComponentArray<Components ...> * compArray,
+    TypeList<Component, Remainder...> const &) const;
+
+  void GetComponentsInternal(ComponentArray<Components ...> *,
+    TypeList<> const &) const;
 
   template <typename Component, typename ... Remainder>
   void DestroyInternal(int entityId, TypeList<Component, Remainder...> const &);
@@ -174,7 +240,10 @@ T & ComponentManager<T>::UpdateComponent(int entityId)
     return futureData_[futureData_.Size() - 1].component;
   }
   else
-    ERROR_LOG("Can't construct a default object to return.");
+  {
+    SetComponent(entityId, GetComponent(entityId));
+    return UpdateComponent(entityId);
+  }
 }
 
 //##############################################################################
@@ -202,6 +271,14 @@ bool ComponentManager<T>::ContainsComponent(int entityId) const
 
 //##############################################################################
 template <typename T>
+int ComponentManager<T>::GetEntityId(T const * component) const
+{
+  int const entityIndex = data_.GetIndex(component);
+  return enitityIds_[entityIndex];
+}
+
+//##############################################################################
+template <typename T>
 void ComponentManager<T>::Advance(void)
 {
   for (FutureData nextData : futureData_)
@@ -219,6 +296,7 @@ void ComponentManager<T>::Advance(void)
     auto * component = componentIds_.Find(entityId);
     int const componentId = component->value;
     data_[componentId].Clear();
+    enitityIds_[componentId] = 0;
     emptyComponentSlots_.EmplaceBack(componentId);
     componentIds_.Erase(component);
   }
@@ -232,6 +310,7 @@ void ComponentManager<T>::Advance(void)
       int const componentId =
         emptyComponentSlots_[emptyComponentSlots_.Size() - 1];
       emptyComponentSlots_.PopBack();
+      enitityIds_[componentId] = newData.entityId;
 
       componentIds_.Emplace(newData.entityId, componentId);
 
@@ -244,12 +323,161 @@ void ComponentManager<T>::Advance(void)
     else
     {
       componentIds_.Emplace(newData.entityId, data_.Size());
+      enitityIds_.EmplaceBack(newData.entityId);
       data_.EmplaceBack(newData.component);
     }
   }
 
   newData_.Clear();
 }
+
+//##############################################################################
+template <typename T>
+void ComponentManager<T>::GetComponents(Array<T const *> * components,
+  SortedArray<int> const & filterIds) const
+{
+  ASSERT(components);
+
+  components->Clear();
+  components->Resize(filterIds.Size());
+
+  int i = 0;
+  int j = 0;
+
+  while (i < filterIds.Size() && j < componentIds_.Size())
+  {
+    if (filterIds[i] < componentIds_[j].key)
+      ++i;
+    else if (componentIds_[j].key < filterIds[i])
+      ++j;
+    else
+    {
+      (*components)[i] = data_[componentIds_[j].value].Ptr();
+      ++i;
+      ++j;
+    }
+  }
+}
+
+//##############################################################################
+template <typename T>
+void ComponentManager<T>::GetAllComponents(Array<T const *> * components,
+  SortedArray<int> * entityIds) const
+{
+  ASSERT(components);
+  ASSERT(entityIds);
+
+  components->Clear();
+  components->Reserve(componentIds_.Size());
+  entityIds->Clear();
+  entityIds->Reserve(componentIds_.Size());
+
+  for (int i = 0; i < componentIds_.Size(); ++i)
+  {
+    entityIds->Emplace(componentIds_[i].key);
+    components->EmplaceBack(data_[componentIds_[i].value].Ptr());
+  }
+}
+
+//##############################################################################
+template <typename ... EntityComponents>
+SortedArray<int> const & ComponentArray<EntityComponents...>::EntityIds(void)
+  const
+{
+  return entityIds_;
+}
+
+//##############################################################################
+template <typename ... EntityComponents>
+template <typename U>
+Array<U const *> const & ComponentArray<EntityComponents...>::Components(void)
+  const
+{
+  return components_.Get<Array<U const *>>();
+}
+
+//##############################################################################
+template <typename ... EntityComponents>
+template <typename U>
+void ComponentArray<EntityComponents...>::AddComponents(
+  ComponentManager<U> const & compMan)
+{
+  if (!initialized_)
+  {
+    compMan.GetAllComponents(&components_.Get<Array<U const *>>(), &entityIds_);
+    initialized_ = true;
+  }
+  else
+  {
+    Array<U const *> & compArray = components_.Get<Array<U const *>>();
+    compMan.GetComponents(&compArray, entityIds_);
+
+    for (int i = entityIds_.Size() - 1; i >= 0; --i)
+    {
+      if (compArray[i] == nullptr)
+        RemoveEntity(i);
+    }
+  }
+}
+
+//##############################################################################
+template <typename ... EntityComponents>
+void ComponentArray<EntityComponents...>::FillWithNulls(void)
+{
+  FillWithNullsInternal(TypeList<EntityComponents...>());
+}
+
+//##############################################################################
+template <typename ... EntityComponents>
+void ComponentArray<EntityComponents...>::RemoveEntity(int entityIndex)
+{
+  entityIds_.Erase(entityIndex);
+
+  RemoveEntityInternal(entityIndex, TypeList<EntityComponents...>());
+}
+
+//##############################################################################
+template <typename ... EntityComponents>
+template <typename Component, typename ... Remainder>
+void ComponentArray<EntityComponents...>::RemoveEntityInternal(int entityIndex,
+  TypeList<Component, Remainder...> const &)
+{
+  Array<Component const *> & compArray =
+    components_.Get<Array<Component const *>>();
+
+  ASSERT(compArray.Size() > entityIndex || compArray.Empty());
+
+  if (!compArray.Empty())
+    compArray.Erase(entityIndex);
+
+  RemoveEntityInternal(entityIndex, TypeList<Remainder...>());
+}
+
+//##############################################################################
+template <typename ... EntityComponents>
+void ComponentArray<EntityComponents...>::RemoveEntityInternal(int,
+  TypeList<> const &)
+{}
+
+//##############################################################################
+template <typename ... EntityComponents>
+template <typename Component, typename ... Remainder>
+void ComponentArray<EntityComponents...>::FillWithNullsInternal(
+  TypeList<Component, Remainder...> const &)
+{
+  Array<Component const *> & compArray =
+    components_.Get<Array<Component const *>>();
+
+  if (compArray.Empty())
+    compArray.Resize(entityIds_.Size());
+
+  FillWithNullsInternal(TypeList<Remainder...>());
+}
+
+//##############################################################################
+template <typename ... Components>
+void ComponentArray<Components...>::FillWithNullsInternal(TypeList<> const &)
+{}
 
 //##############################################################################
 template <typename T>
@@ -315,6 +543,14 @@ int EntityManager<Components...>::GetEntityId(int entityIndex) const
 //##############################################################################
 template <typename ... Components>
 template <typename U>
+int EntityManager<Components...>::GetEntityId(U const * component) const
+{
+  return componentManagers_.Get<ComponentManager<U>>().GetEntityId(component);
+}
+
+//##############################################################################
+template <typename ... Components>
+template <typename U>
 U const & EntityManager<Components...>::GetComponent(int entityId) const
 {
   return componentManagers_.Get<ComponentManager<U>>().GetComponent(entityId);
@@ -339,6 +575,20 @@ U & EntityManager<Components...>::UpdateComponent(int entityId)
     componentManagers_.Get<ComponentManager<U>>().UpdateComponent(entityId);
 }
 
+//##############################################################################
+template <typename ... Components>
+template <typename ... EntityComponents>
+ComponentArray<Components ...>
+  EntityManager<Components...>::GetComponents(void) const
+{
+  ComponentArray<Components ...> result;
+
+  GetComponentsInternal(&result, TypeList<EntityComponents...>());
+
+  result.FillWithNulls();
+
+  return result;
+}
 
 //##############################################################################
 template <typename ... Components>
@@ -437,6 +687,27 @@ void EntityManager<Components...>::AdvanceInternal(
 //##############################################################################
 template <typename ... Components>
 void EntityManager<Components...>::AdvanceInternal(TypeList<> const &)
+{}
+
+//##############################################################################
+template <typename ... Components>
+template <typename Component, typename ... Remainder>
+void EntityManager<Components...>::GetComponentsInternal(
+  ComponentArray<Components ...> * compArray,
+  TypeList<Component, Remainder...> const &) const
+{
+  ASSERT(compArray);
+
+  compArray->AddComponents(
+    componentManagers_.Get<ComponentManager<Component>>());
+
+  GetComponentsInternal(compArray, TypeList<Remainder...>());
+}
+
+//##############################################################################
+template <typename ... Components>
+void EntityManager<Components...>::GetComponentsInternal(
+  ComponentArray<Components ...> *, TypeList<> const &) const
 {}
 
 //##############################################################################
