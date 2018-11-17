@@ -76,170 +76,170 @@ namespace
     switch (virtualKey)
     {
     case '0':
-      return IB_0;
+      return InputButton0;
     case '1':
-      return IB_1;
+      return InputButton1;
     case '2':
-      return IB_2;
+      return InputButton2;
     case '3':
-      return IB_3;
+      return InputButton3;
     case '4':
-      return IB_4;
+      return InputButton4;
     case '5':
-      return IB_5;
+      return InputButton5;
     case '6':
-      return IB_6;
+      return InputButton6;
     case '7':
-      return IB_7;
+      return InputButton7;
     case '8':
-      return IB_8;
+      return InputButton8;
     case '9':
-      return IB_9;
+      return InputButton9;
     case 'A':
-      return IB_A;
+      return InputButtonA;
     case 'B':
-      return IB_B;
+      return InputButtonB;
     case 'C':
-      return IB_C;
+      return InputButtonC;
     case 'D':
-      return IB_D;
+      return InputButtonD;
     case 'E':
-      return IB_E;
+      return InputButtonE;
     case 'F':
-      return IB_F;
+      return InputButtonF;
     case 'G':
-      return IB_G;
+      return InputButtonG;
     case 'H':
-      return IB_H;
+      return InputButtonH;
     case 'I':
-      return IB_I;
+      return InputButtonI;
     case 'J':
-      return IB_J;
+      return InputButtonJ;
     case 'K':
-      return IB_K;
+      return InputButtonK;
     case 'L':
-      return IB_L;
+      return InputButtonL;
     case 'M':
-      return IB_M;
+      return InputButtonM;
     case 'N':
-      return IB_N;
+      return InputButtonN;
     case 'O':
-      return IB_O;
+      return InputButtonO;
     case 'P':
-      return IB_P;
+      return InputButtonP;
     case 'Q':
-      return IB_Q;
+      return InputButtonQ;
     case 'R':
-      return IB_R;
+      return InputButtonR;
     case 'S':
-      return IB_S;
+      return InputButtonS;
     case 'T':
-      return IB_T;
+      return InputButtonT;
     case 'U':
-      return IB_U;
+      return InputButtonU;
     case 'V':
-      return IB_V;
+      return InputButtonV;
     case 'W':
-      return IB_W;
+      return InputButtonW;
     case 'X':
-      return IB_X;
+      return InputButtonX;
     case 'Y':
-      return IB_Y;
+      return InputButtonY;
     case 'Z':
-      return IB_Z;
+      return InputButtonZ;
     case VK_SPACE:
-      return IB_Space;
+      return InputButtonSpace;
     case VK_ESCAPE:
-      return IB_Escape;
+      return InputButtonEscape;
     case VK_OEM_3:
-      return IB_Grave;
+      return InputButtonGrave;
     case VK_TAB:
-      return IB_Tab;
+      return InputButtonTab;
     case VK_OEM_MINUS:
-      return IB_Minus;
+      return InputButtonMinus;
     case VK_ADD:
-      return IB_Equals;
+      return InputButtonEquals;
     case VK_OEM_4:
-      return IB_LeftBracket;
+      return InputButtonLeftBracket;
     case VK_OEM_6:
-      return IB_RightBracket;
+      return InputButtonRightBracket;
     case VK_OEM_1:
-      return IB_Semicolon;
+      return InputButtonSemicolon;
     case VK_OEM_7:
-      return IB_Apostrophe;
+      return InputButtonApostrophe;
     case VK_OEM_COMMA:
-      return IB_Comma;
+      return InputButtonComma;
     case VK_OEM_PERIOD:
-      return IB_Period;
+      return InputButtonPeriod;
     case VK_OEM_5:
-      return IB_BackSlash;
+      return InputButtonBackSlash;
     case VK_OEM_2:
-      return IB_ForwardSlash;
+      return InputButtonForwardSlash;
     case VK_LEFT:
-      return IB_Left;
+      return InputButtonLeft;
     case VK_RIGHT:
-      return IB_Right;
+      return InputButtonRight;
     case VK_UP:
-      return IB_Up;
+      return InputButtonUp;
     case VK_DOWN:
-      return IB_Down;
+      return InputButtonDown;
     case VK_CAPITAL:
-      return IB_CapsLock;
+      return InputButtonCapsLock;
     case VK_INSERT:
-      return IB_Insert;
+      return InputButtonInsert;
     case VK_LSHIFT:
-      return IB_LeftShift;
+      return InputButtonLeftShift;
     case VK_LCONTROL:
-      return IB_LeftControl;
+      return InputButtonLeftControl;
     case VK_RSHIFT:
-      return IB_RightShift;
+      return InputButtonRightShift;
     case VK_RCONTROL:
-      return IB_RightControl;
+      return InputButtonRightControl;
     case VK_MENU:
-      return IB_Alt;
+      return InputButtonAlt;
     case VK_RETURN:
-      return IB_Return;
+      return InputButtonReturn;
     case VK_BACK:
-      return IB_Backspace;
+      return InputButtonBackspace;
     case VK_DELETE:
-      return IB_Delete;
+      return InputButtonDelete;
     case VK_F1:
-      return IB_F1;
+      return InputButtonF1;
     case VK_F2:
-      return IB_F2;
+      return InputButtonF2;
     case VK_F3:
-      return IB_F3;
+      return InputButtonF3;
     case VK_F4:
-      return IB_F4;
+      return InputButtonF4;
     case VK_F5:
-      return IB_F5;
+      return InputButtonF5;
     case VK_F6:
-      return IB_F6;
+      return InputButtonF6;
     case VK_F7:
-      return IB_F7;
+      return InputButtonF7;
     case VK_F8:
-      return IB_F8;
+      return InputButtonF8;
     case VK_F9:
-      return IB_F9;
+      return InputButtonF9;
     case VK_F10:
-      return IB_F10;
+      return InputButtonF10;
     case VK_F11:
-      return IB_F11;
+      return InputButtonF11;
     case VK_F12:
-      return IB_F12;
+      return InputButtonF12;
     case VK_LBUTTON:
-      return IB_LeftMouse;
+      return InputButtonLeftMouse;
     case VK_RBUTTON:
-      return IB_RightMouse;
+      return InputButtonRightMouse;
     default:
-      return IB_Count;
+      return InputButtons;
     };
   }
 }
 
 //##############################################################################
 InputMessage::InputMessage(void) :
-  button(IB_Count),
+  button(InputButtons),
   isDown(false)
 {}
 
