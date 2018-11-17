@@ -26,7 +26,7 @@ public:
   void Erase(T const * location);
   void Erase(SizeType index);
 
-  SizeType GetIndex(T const * location) const;
+  SizeType GetIndex(void const * location) const;
 
   template <typename ... Params>
   void Emplace(T * location, Params && ... params);
@@ -84,6 +84,8 @@ public:
   T const * End(void) const;
 
 private:
+  T const * AdjustForBase(void const * location) const;
+
   std::vector<T> data_;
 };
 
@@ -139,9 +141,12 @@ void Array<T, SizeType>::Erase(SizeType index)
 
 //##############################################################################
 template <typename T, typename SizeType>
-SizeType Array<T, SizeType>::GetIndex(T const * location) const
+SizeType Array<T, SizeType>::GetIndex(void const * location) const
 {
-  SizeType index = SizeType(location - Begin());
+  T const * locationBase = AdjustForBase(location);
+
+  SizeType const index =
+    SizeType(reinterpret_cast<T const *>(locationBase) - Begin());
 
   ASSERT(index < Size());
   ASSERT(index >= 0);
@@ -402,6 +407,19 @@ template <typename T, typename SizeType>
 T const * Array<T, SizeType>::End(void) const
 {
   return Begin() + Size();
+}
+
+//##############################################################################
+template <typename T, typename SizeType>
+T const * Array<T, SizeType>::AdjustForBase(void const * location) const
+{
+  static_assert(sizeof(std::size_t) == sizeof(void const *));
+
+  std::size_t const baseValue     = reinterpret_cast<std::size_t>(Begin());
+  std::size_t const locationValue = reinterpret_cast<std::size_t>(location);
+
+  std::size_t const offset = locationValue - baseValue;
+  return Begin() + (offset / sizeof(T));
 }
 
 namespace std

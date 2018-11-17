@@ -48,7 +48,7 @@ public:
   template <typename U>
   ConstType * Find(U const & key) const;
 
-  SizeType GetIndex(ConstType * location) const;
+  SizeType GetIndex(void const * location) const;
 
   template <typename U>
   bool Contains(U const & key) const;
@@ -200,7 +200,7 @@ typename SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::
 template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,
   typename SizeType>
 SizeType SortedArrayBase<StoreType, UseType, Pred, AlwaysConst, SizeType>::
-  GetIndex(ConstType * location) const
+  GetIndex(void const * location) const
 {
   return data_.GetIndex(location);
 }
