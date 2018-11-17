@@ -489,10 +489,12 @@ void AsciiImage::Render(void) const
 
   for (unsigned i = 0; i < GetCount(); ++i)
   {
-    info[i].Attributes = GetAttributesFromColors(GetValue(i).foregroundColorIndex,
-      GetValue(i).backgroundColorIndex);
+    AsciiImageData const & imageData = GetValue(i);
 
-    info[i].Char.AsciiChar = GetValue(i).character;
+    info[i].Attributes = GetAttributesFromColors(imageData.foregroundColorIndex,
+      imageData.backgroundColorIndex);
+
+    info[i].Char.AsciiChar = imageData.character;
   }
 
   COORD const size = { SHORT(GetWidth()), SHORT(GetHeight()) };
