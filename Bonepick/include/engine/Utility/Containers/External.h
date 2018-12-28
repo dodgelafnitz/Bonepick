@@ -20,7 +20,7 @@ template <typename T>
 struct IExternal
 {
 public:
-  virtual ~IExternal(void) {}
+  virtual ~IExternal(void) = default;
 
   virtual T *       Ptr(void)       = 0;
   virtual T const * Ptr(void) const = 0;
@@ -28,7 +28,10 @@ public:
   bool operator == (IExternal const & external) const;
   bool operator != (IExternal const & external) const;
 
-  private:
+  operator IExternal<std::add_const_t<T>> const &(void) const;
+  operator IExternal<std::add_const_t<T>> &(void);
+
+private:
     friend class External<T>;
     friend class WeakExternal<T>;
 
@@ -67,6 +70,9 @@ public:
 
   void Clear(void);
 
+  operator External<std::add_const_t<T>> const &(void) const;
+  operator External<std::add_const_t<T>> &(void);
+
 private:
   virtual ExternalData<T> * Data(void) const override;
 
@@ -96,6 +102,9 @@ public:
   virtual T const * Ptr(void) const override;
 
   void Clear(void);
+
+  operator WeakExternal<std::add_const_t<T>> const &(void) const;
+  operator WeakExternal<std::add_const_t<T>> &(void);
 
 private:
   virtual ExternalData<T> * Data(void) const  override;
@@ -153,6 +162,20 @@ template <typename T>
 bool IExternal<T>::operator !=(IExternal const & external) const
 {
   return Ptr() != external.Ptr();
+}
+
+//##############################################################################
+template <typename T>
+IExternal<T>::operator IExternal<std::add_const_t<T>> const &(void) const
+{
+  return *this;
+}
+
+//##############################################################################
+template <typename T>
+IExternal<T>::operator IExternal<std::add_const_t<T>> &(void)
+{
+  return *this;
 }
 
 //##############################################################################
@@ -290,6 +313,20 @@ void External<T>::Clear(void)
 
 //##############################################################################
 template <typename T>
+External<T>::operator External<std::add_const_t<T>> const &(void) const
+{
+  return *this;
+}
+
+//##############################################################################
+template <typename T>
+External<T>::operator External<std::add_const_t<T>> &(void)
+{
+  return *this;
+}
+
+//##############################################################################
+template <typename T>
 ExternalData<T> * External<T>::Data(void) const
 {
   return data_;
@@ -401,6 +438,21 @@ void WeakExternal<T>::Clear(void)
     data_ = nullptr;
   }
 }
+
+//##############################################################################
+template <typename T>
+WeakExternal<T>::operator WeakExternal<std::add_const_t<T>> const &(void) const
+{
+  return *this;
+}
+
+//##############################################################################
+template <typename T>
+WeakExternal<T>::operator WeakExternal<std::add_const_t<T>> &(void)
+{
+  return *this;
+}
+
 
 //##############################################################################
 template <typename T>
