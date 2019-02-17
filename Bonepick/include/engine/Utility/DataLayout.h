@@ -3,8 +3,8 @@
 
 #include <typeindex>
 
-#include "engine/Utility/Containers/SortedArray.h"
-#include "engine/Utility/Token.h"
+#include "engine/utility/containers/SortedArray.h"
+#include "engine/utility/Token.h"
 
 //##############################################################################
 class DataLayout

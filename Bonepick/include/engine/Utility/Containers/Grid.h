@@ -4,10 +4,10 @@
 #include <algorithm>
 #include <vector>
 
-#include "engine/Utility/Debug.h"
-#include "engine/Utility/Math/Vector.h"
-#include "engine/Utility/Math/VectorMath.h"
-#include "engine/Utility/Typedefs.h"
+#include "engine/utility/Debug.h"
+#include "engine/utility/math/Vector.h"
+#include "engine/utility/math/VectorMath.h"
+#include "engine/utility/Typedefs.h"
 
 //##############################################################################
 template <typename T, typename SizeType = unsigned>

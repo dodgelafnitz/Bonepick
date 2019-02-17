@@ -1,7 +1,7 @@
 #ifndef ENGINE_UTILITY_MATH_VECTORMATH_H
 #define ENGINE_UTILITY_MATH_VECTORMATH_H
 
-#include "engine/Utility/Math/Vector.h"
+#include "engine/utility/math/Vector.h"
 
 //##############################################################################
 template <typename T, unsigned Size, typename Der>

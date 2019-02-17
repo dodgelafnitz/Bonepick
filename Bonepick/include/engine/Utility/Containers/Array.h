@@ -4,8 +4,8 @@
 #include <initializer_list>
 #include <vector>
 
-#include "engine/Utility/Debug.h"
-#include "engine/Utility/Typedefs.h"
+#include "engine/utility/Debug.h"
+#include "engine/utility/Typedefs.h"
 
 //##############################################################################
 template <typename T, typename SizeType = int>

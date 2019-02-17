@@ -1,7 +1,7 @@
 #ifndef ENGINE_UTILITY_CONTAINERS_DUMBVARIANT_H
 #define ENGINE_UTILITY_CONTAINERS_DUMBVARIANT_H
 
-#include "engine/Utility/Typedefs.h"
+#include "engine/utility/Typedefs.h"
 
 //##############################################################################
 template <int Size>

@@ -5,7 +5,7 @@
 #include <variant>
 #include <vector>
 
-#include "engine/Utility/Typedefs.h"
+#include "engine/utility/Typedefs.h"
 
 //##############################################################################
 enum CommandOptionType;

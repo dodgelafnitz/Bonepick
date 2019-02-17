@@ -2,7 +2,7 @@
 #undef ERROR
 #undef min
 
-#include "engine/Window/Input.h"
+#include "engine/io/ascii/Input.h"
 
 #include <algorithm>
 #include <queue>
@@ -237,42 +237,33 @@ namespace
   }
 }
 
-//##############################################################################
-InputMessage::InputMessage(void) :
-  button(InputButtons),
-  isDown(false)
-{}
-
-//##############################################################################
-InputMessage::InputMessage(InputButton button, bool isDown) :
-  button(button),
-  isDown(isDown)
-{}
-
-//##############################################################################
-InputMessage GetInput(void)
+namespace Ascii
 {
-  RefreshInputs();
+  //############################################################################
+  InputMessage GetInput(void)
+  {
+    RefreshInputs();
 
-  if (messages.empty())
-    return InputMessage();
+    if (messages.empty())
+      return InputMessage();
 
-  InputMessage const result = messages.front();
-  messages.pop();
+    InputMessage const result = messages.front();
+    messages.pop();
 
-  return result;
-}
+    return result;
+  }
 
-//##############################################################################
-void Sleep(unsigned milliseconds)
-{
-  Sleep(DWORD(milliseconds));
-}
+  //############################################################################
+  void Sleep(unsigned milliseconds)
+  {
+    ::Sleep(DWORD(milliseconds));
+  }
 
-//##############################################################################
-IVec2 GetMousePos(void)
-{
-  RefreshInputs();
+  //############################################################################
+  IVec2 GetMousePos(void)
+  {
+    RefreshInputs();
 
-  return mousePos;
+    return mousePos;
+  }
 }

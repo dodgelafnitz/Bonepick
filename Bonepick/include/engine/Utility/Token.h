@@ -4,7 +4,7 @@
 #include <string>
 #include <cstdlib>
 
-#include "engine/Utility/Typedefs.h"
+#include "engine/utility/Typedefs.h"
 
 #define ENABLE_LARGE_TOKENS 1
 

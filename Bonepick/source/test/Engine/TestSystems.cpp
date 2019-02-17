@@ -1,8 +1,8 @@
-#include "test/Engine/TestSystems.h"
+#include "test/engine/TestSystems.h"
 
-#include "engine/System/Entity.h"
-#include "engine/System/EntityManager.h"
-#include "engine/Utility/Debug.h"
+#include "engine/system/Entity.h"
+#include "engine/system/EntityManager.h"
+#include "engine/utility/Debug.h"
 
 namespace
 {

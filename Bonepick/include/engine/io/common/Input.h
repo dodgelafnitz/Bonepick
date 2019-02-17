@@ -1,7 +1,5 @@
-#ifndef ENGINE_WINDOW_INPUT_H
-#define ENGINE_WINDOW_INPUT_H
-
-#include "engine/Utility/Math/Vector.h"
+#ifndef ENGINE_WINDOW_COMMON_INPUT_H
+#define ENGINE_WINDOW_COMMON_INPUT_H
 
 //##############################################################################
 enum InputButton
@@ -87,19 +85,14 @@ enum InputButton
   InputButtons
 };
 
-//##############################################################################
+//############################################################################
 struct InputMessage
 {
-  InputMessage(void);
+  InputMessage(void) = default;
   InputMessage(InputButton button, bool isDown);
 
-  InputButton button;
-  bool isDown;
+  InputButton button = InputButtons;
+  bool        isDown = false;
 };
-
-//##############################################################################
-InputMessage GetInput(void);
-IVec2 GetMousePos(void);
-void Sleep(unsigned milliseconds);
 
 #endif

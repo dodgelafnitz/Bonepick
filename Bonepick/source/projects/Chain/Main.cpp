@@ -1,10 +1,12 @@
-#include "engine/System/EntityManager.h"
-#include "engine/Utility/Math/Vector.h"
-#include "engine/Utility/Math/VectorMath.h"
-#include "engine/Window/Graphics.h"
-#include "engine/Window/Input.h"
+#include "engine/system/EntityManager.h"
+#include "engine/utility/math/Vector.h"
+#include "engine/utility/math/VectorMath.h"
+#include "engine/io/ascii/Graphics.h"
+#include "engine/io/ascii/Input.h"
 
 #include <algorithm>
+
+using namespace Ascii;
 
 namespace
 {
@@ -329,7 +331,7 @@ int main(void)
       if (screenPos.x >= 0 && screenPos.x < screen.GetWidth() &&
         screenPos.y >= 0 && screenPos.y < screen.GetHeight())
       {
-        char printVal = 'A' + i;
+        char printVal = char('A' + i);
 
         if (printVal > 'Z')
           printVal = '#';

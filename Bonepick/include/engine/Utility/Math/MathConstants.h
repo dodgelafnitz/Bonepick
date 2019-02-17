@@ -1,7 +1,7 @@
 #ifndef ENGINE_UTILITY_MATH_MATHCONSTANTS_H
 #define ENGINE_UTILITY_MATH_MATHCONSTANTS_H
 
-#include "engine/Utility/Typedefs.h"
+#include "engine/utility/Typedefs.h"
 
 //##############################################################################
 float const Pi = 3.14159265358979323846264338328;

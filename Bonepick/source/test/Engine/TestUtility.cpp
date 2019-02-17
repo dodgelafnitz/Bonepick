@@ -1,22 +1,22 @@
-#include "test/Engine/TestUtility.h"
+#include "test/engine/TestUtility.h"
 
 #include <cstring>
 #include <type_traits>
 
-#include "engine/Utility/Bitset.h"
-#include "engine/Utility/Blob.h"
-#include "engine/Utility/Containers/DumbVariant.h"
-#include "engine/Utility/Containers/External.h"
-#include "engine/Utility/Containers/Optional.h"
-#include "engine/Utility/Containers/SortedArray.h"
-#include "engine/Utility/Containers/Tuple.h"
-#include "engine/Utility/Containers/Variant.h"
-#include "engine/Utility/DataLayout.h"
-#include "engine/Utility/Debug.h"
-#include "engine/Utility/Math/Vector.h"
-#include "engine/Utility/String.h"
-#include "engine/Utility/TemplateTools.h"
-#include "engine/Utility/Token.h"
+#include "engine/utility/Bitset.h"
+#include "engine/utility/Blob.h"
+#include "engine/utility/containers/DumbVariant.h"
+#include "engine/utility/containers/External.h"
+#include "engine/utility/containers/Optional.h"
+#include "engine/utility/containers/SortedArray.h"
+#include "engine/utility/containers/Tuple.h"
+#include "engine/utility/containers/Variant.h"
+#include "engine/utility/DataLayout.h"
+#include "engine/utility/Debug.h"
+#include "engine/utility/math/Vector.h"
+#include "engine/utility/String.h"
+#include "engine/utility/TemplateTools.h"
+#include "engine/utility/Token.h"
 
 namespace
 {

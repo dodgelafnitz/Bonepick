@@ -1,11 +1,11 @@
 #ifndef ENGINE_SYSTEM_ENTITYMANAGER_H
 #define ENGINE_SYSTEM_ENTITYMANAGER_H
 
-#include "engine/Utility/Containers/Array.h"
-#include "engine/Utility/Containers/Optional.h"
-#include "engine/Utility/Containers/SortedArray.h"
-#include "engine/Utility/Containers/Tuple.h"
-#include "engine/Utility/TemplateTools.h"
+#include "engine/utility/containers/Array.h"
+#include "engine/utility/containers/Optional.h"
+#include "engine/utility/containers/SortedArray.h"
+#include "engine/utility/containers/Tuple.h"
+#include "engine/utility/TemplateTools.h"
 
 //##############################################################################
 template <typename T>

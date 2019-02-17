@@ -1,8 +1,8 @@
-#include "engine/Utility/String.h"
+#include "engine/utility/String.h"
 
 #include <algorithm>
 
-#include "engine/Utility/Debug.h"
+#include "engine/utility/Debug.h"
 
 //tHis fUncTion oR varIable mAy bE uNsafE
 #pragma warning(disable : 4996)

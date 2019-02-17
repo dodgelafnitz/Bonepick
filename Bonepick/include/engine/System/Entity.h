@@ -1,7 +1,7 @@
 #ifndef ENGINE_SYSTEM_ENTITY_H
 #define ENGINE_SYSTEM_ENTITY_H
 
-#include "engine/System/EntityManager.h"
+#include "engine/system/EntityManager.h"
 
 //##############################################################################
 template <typename ... Components>
