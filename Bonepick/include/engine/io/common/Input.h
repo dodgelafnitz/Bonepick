@@ -1,5 +1,5 @@
-#ifndef ENGINE_WINDOW_COMMON_INPUT_H
-#define ENGINE_WINDOW_COMMON_INPUT_H
+#ifndef ENGINE_IO_COMMON_INPUT_H
+#define ENGINE_IO_COMMON_INPUT_H
 
 //##############################################################################
 enum InputButton

@@ -57,7 +57,7 @@ function SetConfigurations(projectName)
   SetConfiguration(projectName, "Release")
 end
 
-function BuildProject(projectName, lib, link)
+function BuildProject(projectName, lib, link, dlls)
   local projectDir = "projects/" .. projectName .. "/"
 
   local includes = ""
@@ -80,6 +80,13 @@ function BuildProject(projectName, lib, link)
     files({ "include/engine/**", includes, sources, "resource/**" })
 
     SetConfigurations(projectName)
+
+  local outputFile = "solution/output/" .. projectName .."/"
+
+  for _, file in ipairs(dlls) do
+    os.copyfile(file, "solution/" .. projectDir .. path.getname(file))
+    os.copyfile(file, outputFile .. path.getname(file))
+  end
 end
 
 function BuildEngine(lib, link)
@@ -100,7 +107,7 @@ function BuildEngine(lib, link)
   table.insert(link, "Engine")
 end
 
-function BuildProjects(lib, link)
+function BuildProjects(lib, link, dlls)
   local projects = os.matchdirs("source/projects/*")
 
   if #projects == 0 then
@@ -109,7 +116,7 @@ function BuildProjects(lib, link)
 
   for _, dir in ipairs(projects) do
     projectName = path.getbasename(dir)
-    BuildProject(projectName, lib, link)
+    BuildProject(projectName, lib, link, dlls)
   end
 end
 
@@ -209,6 +216,9 @@ end
 function BuildAll()
   local name = path.getname(path.getabsolute("./"))
   local lib, link = GetLinkFiles()
+  local dlls = os.matchfiles("dlls/**.dll")
+
+  os.mkdir("solution/output/")
 
   solution(name)
     location("solution/")
@@ -218,16 +228,8 @@ function BuildAll()
     buildoptions({"/std:c++latest"})
 
     BuildEngine(lib, link)
-    BuildProjects(lib, link)
+    BuildProjects(lib, link, dlls)
     BuildTests(lib, link)
-
-  os.mkdir("solution/output/")
-
-  local dlls = os.matchfiles("dlls/**.dll")
-
-  for _, file in ipairs(dlls) do
-    os.copyfile(file, "solution/output/" .. path.getname(file))
-  end
 
   MoveAssets()
 end

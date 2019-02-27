@@ -1,0 +1,6 @@
+#ifndef ENGINE_IO_COMMON_GRAPHICS_H
+#define ENGINE_IO_COMMON_GRAPHICS_H
+
+
+
+#endif

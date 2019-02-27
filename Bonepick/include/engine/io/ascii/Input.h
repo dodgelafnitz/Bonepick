@@ -1,5 +1,5 @@
-#ifndef ENGINE_WINDOW_ASCII_INPUT_H
-#define ENGINE_WINDOW_ASCII_INPUT_H
+#ifndef ENGINE_IO_ASCII_INPUT_H
+#define ENGINE_IO_ASCII_INPUT_H
 
 #include "engine/utility/math/Vector.h"
 #include "engine/io/common/Input.h"
