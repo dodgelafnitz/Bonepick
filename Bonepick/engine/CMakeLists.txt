@@ -2,57 +2,70 @@ project(BonepickEngine C CXX)
 
 add_library(BonepickEngine STATIC)
 
+set_property(TARGET BonepickEngine PROPERTY FOLDER engine)
+
 target_include_directories(BonepickEngine
 PUBLIC
   .
 )
 
+set(inc
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/ascii/Graphics.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/ascii/Input.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/common/Graphics.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/common/Input.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/window/Graphics.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/window/Input.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/system/Entity.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/system/EntityManager.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Bitset.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Blob.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/CommandOptions.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/Array.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/DumbVariant.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/External.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/Grid.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/Optional.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/Shared.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/SortedArray.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/Tuple.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/containers/Variant.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/DataLayout.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Debug.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Macros.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/math/MathConstants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/math/Vector.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/math/VectorMath.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Random.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/String.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/TemplateTools.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Token.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Typedefs.h
+)
+
+set(src
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/ascii/Graphics.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/ascii/Input.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/common/Graphics.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/common/Input.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/window/Graphics.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/io/window/Input.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Bitset.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Blob.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/CommandOptions.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/DataLayout.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Debug.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Random.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/String.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/utility/Token.cpp
+)
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX inc FILES ${inc})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX src FILES ${src})
+
 target_sources(BonepickEngine
 PUBLIC
-  io/ascii/Graphics.h
-  io/ascii/Input.h
-  io/common/Graphics.h
-  io/common/Input.h
-  io/window/Graphics.h
-  io/window/Input.h
-  system/Entity.h
-  system/EntityManager.h
-  utility/Bitset.h
-  utility/Blob.h
-  utility/CommandOptions.h
-  utility/containers/Array.h
-  utility/containers/DumbVariant.h
-  utility/containers/External.h
-  utility/containers/Grid.h
-  utility/containers/Optional.h
-  utility/containers/Shared.h
-  utility/containers/SortedArray.h
-  utility/containers/Tuple.h
-  utility/containers/Variant.h
-  utility/DataLayout.h
-  utility/Debug.h
-  utility/Macros.h
-  utility/math/MathConstants.h
-  utility/math/Vector.h
-  utility/math/VectorMath.h
-  utility/Random.h
-  utility/String.h
-  utility/TemplateTools.h
-  utility/Token.h
-  utility/Typedefs.h
+  ${inc}
 PRIVATE
-  io/ascii/Graphics.cpp
-  io/ascii/Input.cpp
-  io/common/Graphics.cpp
-  io/common/Input.cpp
-  io/window/Graphics.cpp
-  io/window/Input.cpp
-  utility/Bitset.cpp
-  utility/Blob.cpp
-  utility/CommandOptions.cpp
-  utility/DataLayout.cpp
-  utility/Debug.cpp
-  utility/Random.cpp
-  utility/String.cpp
-  utility/Token.cpp
+  ${src}
 )
