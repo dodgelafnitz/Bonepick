@@ -1,8 +1,8 @@
 #ifndef ENGINE_UTILITY_MATH_VECTOR_H
 #define ENGINE_UTILITY_MATH_VECTOR_H
 
-#include "engine/utility/Debug.h"
-#include "engine/utility/Typedefs.h"
+#include "utility/Debug.h"
+#include "utility/Typedefs.h"
 
 //##############################################################################
 #define DECLARE_BINARY_ASSIGNMENT_OP(op)                            \

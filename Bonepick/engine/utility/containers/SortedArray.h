@@ -6,10 +6,10 @@
 #include <initializer_list>
 #include <iterator>
 
-#include "engine/utility/containers/Array.h"
-#include "engine/utility/Debug.h"
-#include "engine/utility/TemplateTools.h"
-#include "engine/utility/Typedefs.h"
+#include "utility/containers/Array.h"
+#include "utility/Debug.h"
+#include "utility/TemplateTools.h"
+#include "utility/Typedefs.h"
 
 //##############################################################################
 template <typename StoreType, typename UseType, typename Pred, bool AlwaysConst,

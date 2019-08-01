@@ -5,8 +5,8 @@
 #include <type_traits>
 #include <vector>
 
-#include "engine/utility/Debug.h"
-#include "engine/utility/Typedefs.h"
+#include "utility/Debug.h"
+#include "utility/Typedefs.h"
 
 //##############################################################################
 class Blob

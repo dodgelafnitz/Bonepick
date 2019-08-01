@@ -3,9 +3,9 @@
 #undef min
 #undef max
 
-#include "engine/io/ascii/Graphics.h"
+#include "io/ascii/Graphics.h"
 
-#include "engine/utility/Debug.h"
+#include "utility/Debug.h"
 
 #pragma warning(push)
 #pragma warning(disable : 4312)
@@ -14,7 +14,7 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_ASSERT(x) ASSERT(x)
-#include "external/stb_image.h"
+#include "stb/stb_image.h"
 
 #pragma warning(pop)
 

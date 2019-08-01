@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "engine/utility/Typedefs.h"
+#include "utility/Typedefs.h"
 
 //##############################################################################
 static int const StringDataSize = sizeof(char const *) + sizeof(int);

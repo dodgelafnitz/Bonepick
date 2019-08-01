@@ -1,7 +1,7 @@
-#include "engine/utility/DataLayout.h"
+#include "utility/DataLayout.h"
 
-#include "engine/utility/Debug.h"
-#include "engine/utility/TemplateTools.h"
+#include "utility/Debug.h"
+#include "utility/TemplateTools.h"
 
 //##############################################################################
 DataLayout::LayoutInfo::LayoutInfo(std::type_index type, unsigned offset) :

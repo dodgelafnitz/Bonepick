@@ -2,7 +2,7 @@
 #undef ERROR
 #undef min
 
-#include "engine/io/ascii/Input.h"
+#include "io/ascii/Input.h"
 
 #include <algorithm>
 #include <queue>

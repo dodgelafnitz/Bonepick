@@ -5,3 +5,4 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 project(Bonepick C CXX)
 
 add_subdirectory(engine)
+add_subdirectory(external)

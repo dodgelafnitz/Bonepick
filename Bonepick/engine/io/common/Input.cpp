@@ -1,4 +1,4 @@
-#include "engine/io/common/Input.h"
+#include "io/common/Input.h"
 
 //############################################################################
 InputMessage::InputMessage(InputButton button, bool isDown) :

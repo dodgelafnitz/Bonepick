@@ -1,9 +1,9 @@
 #ifndef ENGINE_UTILITY_CONTAINERS_EXTERNAL_H
 #define ENGINE_UTILITY_CONTAINERS_EXTERNAL_H
 
-#include "engine/utility/containers/Optional.h"
-#include "engine/utility/Debug.h"
-#include "engine/utility/TemplateTools.h"
+#include "utility/containers/Optional.h"
+#include "utility/Debug.h"
+#include "utility/TemplateTools.h"
 
 //##############################################################################
 template <typename T>

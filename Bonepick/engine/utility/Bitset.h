@@ -3,8 +3,8 @@
 
 #include <initializer_list>
 
-#include "engine/utility/containers/Array.h"
-#include "engine/utility/Typedefs.h"
+#include "utility/containers/Array.h"
+#include "utility/Typedefs.h"
 
 //##############################################################################
 class Bitset

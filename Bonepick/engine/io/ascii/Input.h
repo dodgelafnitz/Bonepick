@@ -1,8 +1,8 @@
 #ifndef ENGINE_WINDOW_ASCII_INPUT_H
 #define ENGINE_WINDOW_ASCII_INPUT_H
 
-#include "engine/utility/math/Vector.h"
-#include "engine/io/common/Input.h"
+#include "utility/math/Vector.h"
+#include "io/common/Input.h"
 
 namespace Ascii
 {

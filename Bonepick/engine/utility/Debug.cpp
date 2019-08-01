@@ -3,8 +3,8 @@
 #include <cstdarg>
 #include <vector>
 
-#include "engine/utility/Debug.h"
-#include "engine/utility/Typedefs.h"
+#include "utility/Debug.h"
+#include "utility/Typedefs.h"
 
 //tHis fUncTion oR varIable mAy bE uNsafE
 #pragma warning(disable : 4996)

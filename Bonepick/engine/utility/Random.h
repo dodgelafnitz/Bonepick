@@ -1,7 +1,7 @@
 #ifndef ENGINE_UTILITY_RANDOM_H
 #define ENGINE_UTILITY_RANDOM_H
 
-#include "engine/utility/Typedefs.h"
+#include "utility/Typedefs.h"
 
 void InitializeRandom(void);
 void InitializeRandom(unsigned seed);

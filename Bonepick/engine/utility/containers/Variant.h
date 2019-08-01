@@ -3,9 +3,9 @@
 
 #include <typeindex>
 
-#include "engine/utility/containers/DumbVariant.h"
-#include "engine/utility/Debug.h"
-#include "engine/utility/TemplateTools.h"
+#include "utility/containers/DumbVariant.h"
+#include "utility/Debug.h"
+#include "utility/TemplateTools.h"
 
 //##############################################################################
 template <typename ... Types>

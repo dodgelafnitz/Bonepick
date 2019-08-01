@@ -3,6 +3,14 @@ project(BonepickEngine C CXX)
 add_library(BonepickEngine STATIC)
 
 set_property(TARGET BonepickEngine PROPERTY FOLDER engine)
+set_property(TARGET BonepickEngine PROPERTY CMAKE_CXX_STANDARD 17)
+set_property(TARGET BonepickEngine PROPERTY CXX_STANDARD_REQUIRED ON)
+target_compile_features(BonepickEngine PUBLIC cxx_std_17)
+
+target_link_libraries(BonepickEngine
+PRIVATE
+  stb
+)
 
 target_include_directories(BonepickEngine
 PUBLIC

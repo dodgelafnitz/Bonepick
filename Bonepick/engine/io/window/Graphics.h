@@ -1,8 +1,8 @@
 #ifndef ENGINE_WINDOW_3D_GRAPHICS_H
 #define ENGINE_WINDOW_3D_GRAPHICS_H
 
-#include "engine/utility/math/Vector.h"
-#include "engine/utility/String.h"
+#include "utility/math/Vector.h"
+#include "utility/String.h"
 
 namespace 3D
 {

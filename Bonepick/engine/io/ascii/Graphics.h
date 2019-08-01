@@ -3,9 +3,9 @@
 
 #include <vector>
 
-#include "engine/utility/containers/Grid.h"
-#include "engine/utility/math/Vector.h"
-#include "engine/utility/Typedefs.h"
+#include "utility/containers/Grid.h"
+#include "utility/math/Vector.h"
+#include "utility/Typedefs.h"
 
 //##############################################################################
 namespace Ascii

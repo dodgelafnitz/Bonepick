@@ -4,8 +4,8 @@
 #include <optional>
 #include <type_traits>
 
-#include "engine/utility/Debug.h"
-#include "engine/utility/TemplateTools.h"
+#include "utility/Debug.h"
+#include "utility/TemplateTools.h"
 
 //##############################################################################
 template <typename T>

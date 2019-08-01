@@ -1,5 +1,5 @@
-#include "engine/utility/Debug.h"
-#include "engine/utility/Token.h"
+#include "utility/Debug.h"
+#include "utility/Token.h"
 
 namespace
 {
