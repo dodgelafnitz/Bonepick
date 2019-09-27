@@ -78,13 +78,3 @@ PUBLIC
 PRIVATE
   ${src}
 )
-
-get_target_property(srces stb INTERFACE_SOURCES)
-
-get_filename_component(srcdr0 ${srces} DIRECTORY)
-get_filename_component(srcdr1 ${srcdr0} DIRECTORY)
-
-message(A: ${srces})
-message(B: ${srcdr0})
-message(C: ${srcdr1})
-#source_group(TREE ${srcdr} PREFIX external/stb FILES ${stb})
