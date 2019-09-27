@@ -68,13 +68,15 @@ set(src
   ${CMAKE_CURRENT_SOURCE_DIR}/utility/Token.cpp
 )
 
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX inc FILES ${inc})
-source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX src FILES ${src})
-add_external_source_group(stb)
-
 target_sources(BonepickEngine
 PUBLIC
   ${inc}
 PRIVATE
   ${src}
 )
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX inc FILES ${inc})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX src FILES ${src})
+add_interface_source_group(stb external)
+
+set_target_properties(BonepickEngine PROPERTIES INTERFACE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
