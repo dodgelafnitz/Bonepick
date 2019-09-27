@@ -70,6 +70,7 @@ set(src
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX inc FILES ${inc})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX src FILES ${src})
+add_external_source_group(stb)
 
 target_sources(BonepickEngine
 PUBLIC
