@@ -8,6 +8,7 @@ target_compile_features(Chain PUBLIC cxx_std_17)
 target_link_libraries(Chain
 PRIVATE
   BonepickEngine
+  Eigen
 )
 
 target_sources(Chain
@@ -17,3 +18,4 @@ PRIVATE
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} PREFIX src FILES ${CMAKE_CURRENT_SOURCE_DIR}/Main.cpp)
 add_interface_source_group(BonepickEngine engine)
+add_interface_source_group(Eigen external)

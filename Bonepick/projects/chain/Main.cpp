@@ -1,8 +1,8 @@
-#include "engine/system/EntityManager.h"
-#include "engine/utility/math/Vector.h"
-#include "engine/utility/math/VectorMath.h"
-#include "engine/io/ascii/Graphics.h"
-#include "engine/io/ascii/Input.h"
+#include "system/EntityManager.h"
+#include "utility/math/Vector.h"
+#include "utility/math/VectorMath.h"
+#include "io/ascii/Graphics.h"
+#include "io/ascii/Input.h"
 
 #include <algorithm>
 
