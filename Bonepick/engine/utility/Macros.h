@@ -45,7 +45,7 @@
 #define MACRO_HAS_EXTRA_ARGS_1(base) MACRO_NAME(base, MULTI)
 
 //macros for defining iterative macro behavior
-#define MAP_WITH_SPLIT(macro, split, ...) EXPAND(MACRO_NAME_COUNT(MAP_WITH_SPLIT_, __VA_ARGS__)(macro, split, __VA_ARGS__))
+#define MAP_WITH_SPLIT(macro, split, ...) MACRO_NAME_COUNT(MAP_WITH_SPLIT_, __VA_ARGS__)(macro, split, __VA_ARGS__)
 #define MAP(macro, ...) EXPAND(MAP_WITH_SPLIT(macro, , __VA_ARGS__))
 
 #define MAP_WITH_SPLIT_1(macro, split, input)       macro(input)
