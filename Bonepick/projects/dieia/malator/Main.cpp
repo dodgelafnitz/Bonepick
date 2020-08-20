@@ -202,18 +202,18 @@ namespace Malator {
           }
         case 5: {
             switch (m_dice[1]) {
-              case 2: return High5Next21;
-              case 3: return static_cast<RollType>(High5Next31 + m_dice[2] - 1);
-              case 4: return static_cast<RollType>(High5Next41 + m_dice[2] - 1);
+            case 2: return High5Next21;
+            case 3: return static_cast<RollType>(High5Next31 + m_dice[2] - 1);
+            case 4: return static_cast<RollType>(High5Next41 + m_dice[2] - 1);
             }
             return Invalid;
           }
         case 6: {
             switch (m_dice[1]) {
-              case 2: return High6Next21;
-              case 3: return static_cast<RollType>(High6Next31 + m_dice[2] - 1);
-              case 4: return static_cast<RollType>(High6Next41 + m_dice[2] - 1);
-              case 5: return static_cast<RollType>(High6Next51 + m_dice[2] - 1);
+            case 2: return High6Next21;
+            case 3: return static_cast<RollType>(High6Next31 + m_dice[2] - 1);
+            case 4: return static_cast<RollType>(High6Next41 + m_dice[2] - 1);
+            case 5: return static_cast<RollType>(High6Next51 + m_dice[2] - 1);
             }
             return Invalid;
           }
@@ -221,20 +221,20 @@ namespace Malator {
       }
       else if (m_dice[0] == m_dice[1]) {
         switch (m_dice[0]) {
-          case 2: return Pair2Next1;
-          case 3: return static_cast<RollType>(Pair3Next1 + m_dice[2] - 1);
-          case 4: return static_cast<RollType>(Pair4Next1 + m_dice[2] - 1);
-          case 5: return static_cast<RollType>(Pair5Next1 + m_dice[2] - 1);
-          case 6: return static_cast<RollType>(Pair6Next1 + m_dice[2] - 1);
+        case 2: return Pair2Next1;
+        case 3: return static_cast<RollType>(Pair3Next1 + m_dice[2] - 1);
+        case 4: return static_cast<RollType>(Pair4Next1 + m_dice[2] - 1);
+        case 5: return static_cast<RollType>(Pair5Next1 + m_dice[2] - 1);
+        case 6: return static_cast<RollType>(Pair6Next1 + m_dice[2] - 1);
         }
       }
       else if (m_dice[1] == m_dice[2]) {
         switch (m_dice[1]) {
-          case 1: return static_cast<RollType>(Pair1Next2 + m_dice[0] - 2);
-          case 2: return static_cast<RollType>(Pair2Next3 + m_dice[0] - 3);
-          case 3: return static_cast<RollType>(Pair3Next4 + m_dice[0] - 4);
-          case 4: return static_cast<RollType>(Pair4Next5 + m_dice[0] - 5);
-          case 5: return Pair5Next6;
+        case 1: return static_cast<RollType>(Pair1Next2 + m_dice[0] - 2);
+        case 2: return static_cast<RollType>(Pair2Next3 + m_dice[0] - 3);
+        case 3: return static_cast<RollType>(Pair3Next4 + m_dice[0] - 4);
+        case 4: return static_cast<RollType>(Pair4Next5 + m_dice[0] - 5);
+        case 5: return Pair5Next6;
         }
       }
       return Invalid;
@@ -261,159 +261,390 @@ namespace Malator {
     }
   }
 
-  struct Modifier {
-    using RollCondition = std::function<bool(Roll const &)>;
-    using DieCondition = std::function<bool(Roll const &, unsigned char)>;
-    using DieModifier = std::function<unsigned char(Roll const &, unsigned char)>;
+  using DieValueModifier = std::function<unsigned char(unsigned char)>;
 
-    Modifier(void) = default;
-    Modifier(
-      std::string const & name,
-      RollCondition const & rollCond,
-      DieCondition const & dieCond,
-      DieModifier const & dieMod
-    ) :
-      name(name),
-      rollCond(rollCond),
-      dieCond(dieCond),
-      dieMod(dieMod)
-    {}
+  struct DieSelection {
+    bool          selectOther;
+    unsigned char value;
 
-    std::string   name;
-    RollCondition rollCond;
-    DieCondition  dieCond;
-    DieModifier   dieMod;
+    void SetValue(Roll & io_roll, Roll & io_other, DieValueModifier const & func) const {
+      Roll & selectedRoll = selectOther ? io_other : io_roll;
+      int index = -1;
+
+      for (int i = 0; i < 3; ++i) {
+        if (selectedRoll[i] == value) {
+          index = i;
+          break;
+        }
+      }
+
+      if (index == -1) {
+        return;
+      }
+
+      unsigned char newValue = func(value);
+
+      selectedRoll = Roll(
+        index == 0 ? newValue : selectedRoll[0],
+        index == 1 ? newValue : selectedRoll[1],
+        index == 2 ? newValue : selectedRoll[2]
+      );
+    }
   };
 
-  Roll GetBestMod(Roll const & roll, Modifier const & mod) {
-    if (!mod.rollCond(roll)) {
-      return roll;
+  using RollCondition   = std::function<bool(Roll const &, Roll const &)>;
+  using DieFilter       = std::function<bool(Roll const &, Roll const &, DieSelection const &)>;
+  using SelectionFilter = std::function<bool(Roll const &, Roll const &, std::vector<DieSelection> const &)>;
+  using DieModifier     = std::function<void(Roll &, Roll &, std::vector<DieSelection> const &)>;
+
+  struct DieEffect {
+    std::vector<DieFilter> dieFilters;
+    SelectionFilter        selectionFilter;
+    DieModifier            mod;
+  };
+
+  struct Modifier {
+    std::string            name;
+    RollCondition          condition;
+    std::vector<DieEffect> effects;
+  };
+
+  bool CanApplyMod(
+    Roll const &                                   roll,
+    Roll const &                                   other,
+    Modifier const &                               mod,
+    std::vector<std::vector<DieSelection>> const & selections
+  ) {
+    if (!mod.condition(roll, other)) {
+      return false;
     }
 
-    Roll bestResult = roll;
+    if (selections.size() != mod.effects.size()) {
+      return false;
+    }
 
-    for (int i = 0; i < 3; ++i) {
-      if (!mod.dieCond(roll, roll[i])) {
-        continue;
+    for (int i = 0; i < selections.size(); ++i) {
+      std::vector<DieSelection> const & selectionGroup = selections[i];
+      DieEffect const &                 effect = mod.effects[i];
+
+      if (selectionGroup.size() != effect.dieFilters.size()) {
+        return false;
       }
 
-      unsigned char newDieVal = mod.dieMod(roll, roll[i]);
+      for (int j = 0; j < selectionGroup.size(); ++j) {
+        DieSelection const & selection = selectionGroup[j];
+        DieFilter const &    filter = effect.dieFilters[j];
 
-      Roll newRoll(
-        i == 0 ? newDieVal : roll[0],
-        i == 1 ? newDieVal : roll[1],
-        i == 2 ? newDieVal : roll[2]
+        if (!filter(roll, other, selection)) {
+          return false;
+        }
+      }
+
+      if (!effect.selectionFilter(roll, other, selectionGroup)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  struct ModificationResult {
+    Roll roll;
+    Roll other;
+    bool modified;
+  };
+
+  ModificationResult TryApplyMod(
+    Roll const &                                   roll,
+    Roll const &                                   other,
+    Modifier const &                               mod,
+    std::vector<std::vector<DieSelection>> const & selections
+  ) {
+    ModificationResult result = { roll, other, false };
+
+    if (!CanApplyMod(roll, other, mod, selections)) {
+      return result;
+    }
+
+    result.modified = true;
+
+    for (int i = 0; i < mod.effects.size(); ++i) {
+      std::vector<DieSelection> const & selectionGroup = selections[i];
+      DieEffect const &                 effect         = mod.effects[i];
+
+      effect.mod(result.roll, result.other, selectionGroup);
+    }
+
+    return result;
+  }
+
+  struct GetBestModChoiceRecursiveInput {
+    Roll const &                             roll;
+    Roll const &                             other;
+    Modifier const &                         mod;
+    std::vector<std::vector<DieSelection>> & i_currentSelection;
+    ModificationResult &                     io_result;
+    int &                                    io_bestDiff;
+  };
+
+  bool GetBestModChoiceRecursiveGetNextSelectionIsSelectionGroupFull(
+    Modifier const &                               mod,
+    std::vector<std::vector<DieSelection>> const & io_currentSelection,
+    int                                            selectionGroup
+  ) {
+    if (selectionGroup < 0) {
+      return true;
+    }
+
+
+    //todo: handle being out of slots too...
+    //todo: asserts for this
+    return io_currentSelection[selectionGroup].size() == mod.effects[selectionGroup].dieFilters.size();
+  }
+
+  void GetBestModChoiceRecursiveGetNextSelection(
+    Modifier const &                         mod,
+    std::vector<std::vector<DieSelection>> & io_currentSelection,
+    int &                                    selectionGroup,
+    int &                                    selectionIndex,
+    DieSelection *&                          nextSelection
+  ) {
+    while (GetBestModChoiceRecursiveGetNextSelectionIsSelectionGroupFull(mod, io_currentSelection, io_currentSelection.size() - 1)) {
+      if (io_currentSelection.size() == mod.effects.size()) {
+        selectionGroup = -1;
+        selectionIndex = -1;
+        nextSelection  = nullptr;
+
+        return;
+      }
+      io_currentSelection.emplace_back();
+    }
+
+    io_currentSelection.back().emplace_back();
+
+    selectionGroup = io_currentSelection.size() - 1;
+    selectionIndex = io_currentSelection.back().size() - 1;
+    nextSelection = &io_currentSelection.back().back();
+  }
+
+  void GetBestModChoiceRecursiveRemoveSelection(
+    std::vector<std::vector<DieSelection>> & io_currentSelection,
+    int                                      selectionGroup,
+    int                                      selectionIndex
+  ) {
+    // todo: assert here: io_currentSelection.size() == selectionGroup + 1
+    // todo: assert here: io_currentSelection[selectionGroup].size() == selectionIndex + 1
+
+    if (selectionIndex == 0) {
+      if (selectionGroup == 0) {
+        io_currentSelection.clear();
+      }
+      else {
+        io_currentSelection.pop_back();
+      }
+    }
+    else {
+      io_currentSelection[selectionGroup].pop_back();
+    }
+  }
+
+  void GetBestModChoiceRecursiveBuildNext(
+    GetBestModChoiceRecursiveInput & io_workingData,
+    int                              selectionGroup,
+    int                              selectionIndex,
+    DieSelection *                   nextSelection
+  ) {
+    // todo: get some asserts for this
+
+    DieFilter const & dieFilter = io_workingData.mod.effects[selectionGroup].dieFilters[selectionIndex];
+
+    for (bool selectOther : { false, true }) {
+      nextSelection->selectOther = selectOther;
+
+      for (int i = 0; i < 3; ++i) {
+        nextSelection->value = (selectOther ? io_workingData.other : io_workingData.roll)[i];
+
+        if (dieFilter(io_workingData.roll, io_workingData.other, *nextSelection)) {
+          GetBestModChoiceRecursive(io_workingData);
+        }
+      }
+    }
+  }
+
+  void GetBestModChoiceRecursiveEvaluateSelection(GetBestModChoiceRecursiveInput & io_workingData) {
+    ModificationResult result = TryApplyMod(io_workingData.roll, io_workingData.other, io_workingData.mod, io_workingData.i_currentSelection);
+
+    //todo: assert on this
+    if (!result.modified) {
+      return;
+    }
+
+    int diff = result.roll.GetRollType() - result.other.GetRollType();
+
+    if (diff > io_workingData.io_bestDiff) {
+      io_workingData.io_bestDiff = diff;
+      io_workingData.io_result   = result;
+    }
+  }
+
+  void GetBestModChoiceRecursive(GetBestModChoiceRecursiveInput & io_workingData) {
+    int            selectionGroup;
+    int            selectionIndex;
+    DieSelection * nextSelection;
+    GetBestModChoiceRecursiveGetNextSelection(
+      io_workingData.mod,
+      io_workingData.i_currentSelection,
+      selectionGroup,
+      selectionIndex,
+      nextSelection
+    );
+
+    if (nextSelection) {
+      GetBestModChoiceRecursiveBuildNext(
+        io_workingData,
+        selectionGroup,
+        selectionIndex,
+        nextSelection
       );
 
-      if (newRoll.GetRollType() > bestResult.GetRollType()) {
-        bestResult = newRoll;
-      }
+      GetBestModChoiceRecursiveRemoveSelection(
+        io_workingData.i_currentSelection,
+        selectionGroup,
+        selectionIndex
+      );
+    }
+    else {
+      GetBestModChoiceRecursiveEvaluateSelection(io_workingData);
+    }
+  }
+
+  ModificationResult GetBestMod(Roll const & roll, Roll const & other, Modifier const & mod) {
+    ModificationResult result = { roll, other, false };
+    int                bestDiff = roll.GetRollType() - other.GetRollType();
+
+    if (!mod.condition(roll, other)) {
+      return result;
     }
 
-    return bestResult;
+    GetBestModChoiceRecursiveInput workingData = { roll, other, mod, {}, result, bestDiff };
+    GetBestModChoiceRecursive(workingData);
+
+    return result;
   }
 
   enum RollDescriptors {
-    None   = 0x0,
+    None        = 0x0,
 
-    _1     = 0x1 << 0,
-    _2     = 0x1 << 1,
-    _3     = 0x1 << 2,
-    _4     = 0x1 << 3,
-    _5     = 0x1 << 4,
-    _6     = 0x1 << 5,
+    Own1        = 0x1 << 0,
+    Own2        = 0x1 << 1,
+    Own3        = 0x1 << 2,
+    Own4        = 0x1 << 3,
+    Own5        = 0x1 << 4,
+    Own6        = 0x1 << 5,
+    
+    Other1      = 0x1 << 6,
+    Other2      = 0x1 << 7,
+    Other3      = 0x1 << 8,
+    Other4      = 0x1 << 9,
+    Other5      = 0x1 << 10,
+    Other6      = 0x1 << 11,
 
-    Low  = 0x1 << 6,
-    Mid  = 0x1 << 7,
-    High = 0x1 << 8,
+    OwnUnder2   = Own1,
+    OwnUnder3   = OwnUnder2 | Own2,
+    OwnUnder4   = OwnUnder3 | Own3,
+    OwnUnder5   = OwnUnder4 | Own4,
+    OwnUnder6   = OwnUnder5 | Own5,
 
-    Even   = _2 | _4 | _6,
-    Odd    = _1 | _3 | _5,
-    All    = Even | Odd,
+    OwnOver5    = Own6,
+    OwnOver4    = OwnOver5 | Own5,
+    OwnOver3    = OwnOver4 | Own4,
+    OwnOver2    = OwnOver3 | Own3,
+    OwnOver1    = OwnOver2 | Own2,
 
-    Relative = Low | Mid | High,
+    OwnNot1     = OwnOver1,
+    OwnNot2     = OwnUnder2 | OwnOver2,
+    OwnNot3     = OwnUnder3 | OwnOver3,
+    OwnNot4     = OwnUnder3 | OwnOver4,
+    OwnNot5     = OwnUnder5 | OwnOver5,
+    OwnNot6     = OwnUnder6,
 
-    Under2 = _1,
-    Under3 = Under2 | _2,
-    Under4 = Under3 | _3,
-    Under5 = Under4 | _4,
-    Under6 = Under5 | _5,
+    OtherUnder2 = Other1,
+    OtherUnder3 = OtherUnder2 | Other2,
+    OtherUnder4 = OtherUnder3 | Other3,
+    OtherUnder5 = OtherUnder4 | Other4,
+    OtherUnder6 = OtherUnder5 | Other5,
 
-    Over5  = _6,
-    Over4  = Over5 | _5,
-    Over3  = Over4 | _4,
-    Over2  = Over3 | _3,
-    Over1  = Over2 | _2,
+    OtherOver5  = Other6,
+    OtherOver4  = OtherOver5 | Other5,
+    OtherOver3  = OtherOver4 | Other4,
+    OtherOver2  = OtherOver3 | Other3,
+    OtherOver1  = OtherOver2 | Other2,
 
-    Not1 = Over1,
-    Not2 = Under2 | Over2,
-    Not3 = Under3 | Over3,
-    Not4 = Under3 | Over4,
-    Not5 = Under5 | Over5,
-    Not6 = Under6,
+    OtherNot1   = OtherOver1,
+    OtherNot2   = OtherUnder2 | OtherOver2,
+    OtherNot3   = OtherUnder3 | OtherOver3,
+    OtherNot4   = OtherUnder3 | OtherOver4,
+    OtherNot5   = OtherUnder5 | OtherOver5,
+    OtherNot6   = OtherUnder6,
+
+    Under2  = OwnUnder2 | OtherUnder2,
+    Under3  = OwnUnder3 | OtherUnder3,
+    Under4  = OwnUnder4 | OtherUnder4,
+    Under5  = OwnUnder5 | OtherUnder5,
+    Under6  = OwnUnder6 | OtherUnder6,
+
+    Over5  = OwnOver5 | OtherOver5,
+    Over4  = OwnOver4 | OtherOver4,
+    Over3  = OwnOver3 | OtherOver3,
+    Over2  = OwnOver2 | OtherOver2,
+    Over1  = OwnOver1 | OtherOver1,
+
+    Not1  = OwnNot1 | OtherNot1,
+    Not2  = OwnNot2 | OtherNot2,
+    Not3  = OwnNot3 | OtherNot3,
+    Not4  = OwnNot4 | OtherNot4,
+    Not5  = OwnNot5 | OtherNot5,
+    Not6  = OwnNot6 | OtherNot6,
+    
+    OwnOdd      = Own1 | Own3 | Own5,
+    OwnEven     = Own2 | Own4 | Own6,
+    Own         = OwnOdd | OwnEven,
+    
+    OtherOdd    = Other1 | Other3 | Other5,
+    OtherEven   = Other2 | Other4 | Other6,
+    Other       = OtherOdd | OtherEven,
+
+    All         = Own | Other,
   };
 
   struct NamedRollCondition {
-    NamedRollCondition(void) = delete;
-    NamedRollCondition(
-      std::string const &             name,
-      Modifier::RollCondition const & func,
-      int                             possibleRolls,
-      int                             requiredRolls
-    ) :
-      name(name),
-      func(func),
-      possibleRolls(possibleRolls),
-      requiredRolls(requiredRolls)
-    {}
-
-    std::string             name;
-    Modifier::RollCondition func;
-    int                     possibleRolls;
-    int                     requiredRolls;
+    std::string   descriptionPart;
+    RollCondition func;
+    int           possibleRolls;
+    int           requiredRolls;
   };
 
-  struct NamedDieCondition {
-    NamedDieCondition(void) = delete;
-    NamedDieCondition(
-      std::string const &            name,
-      Modifier::DieCondition const & func,
-      int                            possibleRolls,
-      int                            requiredRolls
-    ) :
-      name(name),
-      func(func),
-      possibleRolls(possibleRolls),
-      requiredRolls(requiredRolls)
-    {}
+  struct NamedDieFilter {
+    std::string descriptionPart;
+    DieFilter   func;
+    int         possibleRolls;
+    int         requiredRolls;
+    bool        generalOption;
+  };
 
-    std::string            name;
-    Modifier::DieCondition func;
-    int                    possibleRolls;
-    int                    requiredRolls;
+  struct NamedSelectionFilter {
+    std::string     descriptionPart;
+    SelectionFilter func;
+    int             possibleRolls;
+    int             requiredRolls;
   };
 
   struct NamedDieModifier {
-    NamedDieModifier(void) = delete;
-    NamedDieModifier(
-      std::string const &           prefix,
-      std::string const &           postfix,
-      Modifier::DieModifier const & func,
-      int                           possibleRolls,
-      bool                          requiresMultiplePossibleTargets
-    ) :
-      prefix(prefix),
-      postfix(postfix),
-      func(func),
-      possibleRolls(possibleRolls),
-      requiresMultiplePossibleTargets(requiresMultiplePossibleTargets)
-    {}
-
-    std::string           prefix;
-    std::string           postfix;
-    Modifier::DieModifier func;
-    int                   possibleRolls;
-    bool                  requiresMultiplePossibleTargets;
+    std::string descriptionPrefix;
+    std::string descriptionPostfix;
+    DieModifier func;
+    int         possibleRolls;
+    bool        requiresMultiplePossibleTargets;
   };
 
   bool AnyDieIs(Roll const & roll, int value) {
@@ -447,7 +678,9 @@ namespace Malator {
   }
 
   NamedRollCondition s_namedRollConditions[] = {
-    NamedRollCondition("",                                [](Roll const &)      -> bool { return true; },                            All    | Relative,   None | None),
+    { "", [](Roll const &, Roll const &){ return true; }, All, None },
+
+
     //NamedRollCondition("If You Have a Nothing, ",         [](Roll const & roll) -> bool { return IsANothing(roll.GetRollType()); },  All    | Relative,   None | None),
     //NamedRollCondition("If You Have a Pair, ",            [](Roll const & roll) -> bool { return IsAPair(roll.GetRollType()); },     All    | Low | High, None | None),
     //NamedRollCondition("If You Have a Run, ",             [](Roll const & roll) -> bool { return IsARun(roll.GetRollType()); },      All    | Relative,   None | None),
@@ -490,58 +723,64 @@ namespace Malator {
     //NamedRollCondition("If Any Value Is Odd, ",           [](Roll const & roll) -> bool { return AnyDieSatisfies(roll, IsOdd); },    All    | Relative,   None | None),
   };
 
-  NamedDieCondition s_namedDieConditions[] = {
-    NamedDieCondition("Any Die",                 [](Roll const &,      unsigned char)        -> bool { return true;        },               All            | Relative,   None | None),
-    NamedDieCondition("Any 1",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 1; },               _1             | Relative,   _1   | None),
-    NamedDieCondition("Any 2",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 2; },               _2             | Relative,   _2   | None),
-    NamedDieCondition("Any 3",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 3; },               _3             | Relative,   _3   | None),
-    NamedDieCondition("Any 4",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 4; },               _4             | Relative,   _4   | None),
-    NamedDieCondition("Any 5",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 5; },               _5             | Relative,   _5   | None),
-    NamedDieCondition("Any 6",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 6; },               _6             | Relative,   _6   | None),
-    NamedDieCondition("Any Odd Die",             [](Roll const &,      unsigned char dieVal) -> bool { return dieVal % 2 == 1; },           Odd            | Relative,   None | None),
-    NamedDieCondition("Any Even Die",            [](Roll const &,      unsigned char dieVal) -> bool { return dieVal % 2 == 0; },           Even           | Relative,   None | None),
-    NamedDieCondition("Any Die 2 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 2; },               Under3         | Relative,   None | None),
-    NamedDieCondition("Any Die 3 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 3; },               Under4         | Relative,   None | None),
-    NamedDieCondition("Any Die 4 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 4; },               Under5         | Relative,   None | None),
-    NamedDieCondition("Any Die 5 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 5; },               Under6         | Relative,   None | None),
-    NamedDieCondition("Any Die 2 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2; },               Over1          | Relative,   None | None),
-    NamedDieCondition("Any Die 3 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 3; },               Over2          | Relative,   None | None),
-    NamedDieCondition("Any Die 4 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 4; },               Over3          | Relative,   None | None),
-    NamedDieCondition("Any Die 5 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 5; },               Over4          | Relative,   None | None),
-    NamedDieCondition("Any Non-2",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 2; },               Not2           | Relative,   None | None),
-    NamedDieCondition("Any Non-3",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 3; },               Not3           | Relative,   None | None),
-    NamedDieCondition("Any Non-4",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 4; },               Not4           | Relative,   None | None),
-    NamedDieCondition("Any Non-5",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 5; },               Not5           | Relative,   None | None),
-    NamedDieCondition("Any Die Between 2 and 3", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2 && dieVal < 4; }, Over1 & Under4 | Relative,   None | None),
-    NamedDieCondition("Any Die Between 2 and 4", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2 && dieVal < 5; }, Over1 & Under5 | Relative,   None | None),
-    NamedDieCondition("Any Die Between 2 and 5", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2 && dieVal < 6; }, Over1 & Under6 | Relative,   None | None),
-    NamedDieCondition("Any Die Between 3 and 4", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 3 && dieVal < 5; }, Over2 & Under5 | Relative,   None | None),
-    NamedDieCondition("Any Die Between 3 and 5", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 3 && dieVal < 6; }, Over2 & Under6 | Relative,   None | None),
-    NamedDieCondition("Any Die Between 4 and 5", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 4 && dieVal < 6; }, Over3 & Under6 | Relative,   None | None),
-    NamedDieCondition("Your Highest Die",        [](Roll const & roll, unsigned char dieVal) -> bool { return roll[0] == dieVal; },         All            | Low | High, None | High),
-    NamedDieCondition("Your Lowest Die",         [](Roll const & roll, unsigned char dieVal) -> bool { return roll[2] == dieVal; },         All            | Low | High, None | Low),
+  NamedDieFilter s_namedDieFilters[] = {
+    { "Any Die", [](Roll const &, Roll const &, DieSelection const &) { return true; }, All, None, true },
+    //NamedDieCondition("Any 1",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 1; },               _1             | Relative,   _1   | None),
+    //NamedDieCondition("Any 2",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 2; },               _2             | Relative,   _2   | None),
+    //NamedDieCondition("Any 3",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 3; },               _3             | Relative,   _3   | None),
+    //NamedDieCondition("Any 4",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 4; },               _4             | Relative,   _4   | None),
+    //NamedDieCondition("Any 5",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 5; },               _5             | Relative,   _5   | None),
+    //NamedDieCondition("Any 6",                   [](Roll const &,      unsigned char dieVal) -> bool { return dieVal == 6; },               _6             | Relative,   _6   | None),
+    //NamedDieCondition("Any Odd Die",             [](Roll const &,      unsigned char dieVal) -> bool { return dieVal % 2 == 1; },           Odd            | Relative,   None | None),
+    //NamedDieCondition("Any Even Die",            [](Roll const &,      unsigned char dieVal) -> bool { return dieVal % 2 == 0; },           Even           | Relative,   None | None),
+    //NamedDieCondition("Any Die 2 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 2; },               Under3         | Relative,   None | None),
+    //NamedDieCondition("Any Die 3 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 3; },               Under4         | Relative,   None | None),
+    //NamedDieCondition("Any Die 4 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 4; },               Under5         | Relative,   None | None),
+    //NamedDieCondition("Any Die 5 or Under",      [](Roll const &,      unsigned char dieVal) -> bool { return dieVal <= 5; },               Under6         | Relative,   None | None),
+    //NamedDieCondition("Any Die 2 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2; },               Over1          | Relative,   None | None),
+    //NamedDieCondition("Any Die 3 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 3; },               Over2          | Relative,   None | None),
+    //NamedDieCondition("Any Die 4 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 4; },               Over3          | Relative,   None | None),
+    //NamedDieCondition("Any Die 5 or Over",       [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 5; },               Over4          | Relative,   None | None),
+    //NamedDieCondition("Any Non-2",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 2; },               Not2           | Relative,   None | None),
+    //NamedDieCondition("Any Non-3",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 3; },               Not3           | Relative,   None | None),
+    //NamedDieCondition("Any Non-4",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 4; },               Not4           | Relative,   None | None),
+    //NamedDieCondition("Any Non-5",               [](Roll const &,      unsigned char dieVal) -> bool { return dieVal != 5; },               Not5           | Relative,   None | None),
+    //NamedDieCondition("Any Die Between 2 and 3", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2 && dieVal < 4; }, Over1 & Under4 | Relative,   None | None),
+    //NamedDieCondition("Any Die Between 2 and 4", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2 && dieVal < 5; }, Over1 & Under5 | Relative,   None | None),
+    //NamedDieCondition("Any Die Between 2 and 5", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 2 && dieVal < 6; }, Over1 & Under6 | Relative,   None | None),
+    //NamedDieCondition("Any Die Between 3 and 4", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 3 && dieVal < 5; }, Over2 & Under5 | Relative,   None | None),
+    //NamedDieCondition("Any Die Between 3 and 5", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 3 && dieVal < 6; }, Over2 & Under6 | Relative,   None | None),
+    //NamedDieCondition("Any Die Between 4 and 5", [](Roll const &,      unsigned char dieVal) -> bool { return dieVal >= 4 && dieVal < 6; }, Over3 & Under6 | Relative,   None | None),
+    //NamedDieCondition("Your Highest Die",        [](Roll const & roll, unsigned char dieVal) -> bool { return roll[0] == dieVal; },         All            | Low | High, None | High),
+    //NamedDieCondition("Your Lowest Die",         [](Roll const & roll, unsigned char dieVal) -> bool { return roll[2] == dieVal; },         All            | Low | High, None | Low),
+  };
+
+  NamedSelectionFilter s_namedSelectionFilters[] = {
+    { "", [](Roll const &, Roll const &, std::vector<DieSelection> const &) { return true; }, All, None },
   };
 
   NamedDieModifier s_namedDieModifiers[] = {
-    NamedDieModifier("Add 1 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 1; }, Under6 | Relative,   true),
-    NamedDieModifier("Add 2 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 2; }, Under5 | Relative,   true),
-    NamedDieModifier("Add 3 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 3; }, Under4 | Relative,   true),
-    NamedDieModifier("Add 4 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 4; }, Under3 | Relative,   true),
-    NamedDieModifier("Remove 1 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 1; }, Over1  | Relative,   true),
-    NamedDieModifier("Remove 2 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 2; }, Over2  | Relative,   true),
-    NamedDieModifier("Remove 3 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 3; }, Over3  | Relative,   true),
-    NamedDieModifier("Remove 4 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 4; }, Over4  | Relative,   true),
-    NamedDieModifier("Change ",        " to a 1",                    [](Roll const &,      unsigned char)        -> unsigned char { return 1; },          Not1   | Relative,   false),
-    NamedDieModifier("Change ",        " to a 2",                    [](Roll const &,      unsigned char)        -> unsigned char { return 2; },          Not2   | Relative,   false),
-    NamedDieModifier("Change ",        " to a 3",                    [](Roll const &,      unsigned char)        -> unsigned char { return 3; },          Not3   | Relative,   false),
-    NamedDieModifier("Change ",        " to a 4",                    [](Roll const &,      unsigned char)        -> unsigned char { return 4; },          Not4   | Relative,   false),
-    NamedDieModifier("Change ",        " to a 5",                    [](Roll const &,      unsigned char)        -> unsigned char { return 5; },          Not5   | Relative,   false),
-    NamedDieModifier("Change ",        " to a 6",                    [](Roll const &,      unsigned char)        -> unsigned char { return 6; },          Not6   | Relative,   false),
-    NamedDieModifier("Invert ",        "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return 7 - dieVal; }, All    | Relative,   true),
-    NamedDieModifier("Change ",        " to Match Your Highest Die", [](Roll const & roll, unsigned char dieVal) -> unsigned char { return roll[0]; },    Not6   | Low | Mid,  false),
-    NamedDieModifier("Change ",        " to Match Your Lowest Die",  [](Roll const & roll, unsigned char dieVal) -> unsigned char { return roll[2]; },    Not1   | Mid | High, false),
-    NamedDieModifier("Multiply ",      " by 2",                      [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal * 2; }, Under4 | Relative,   true),
-    NamedDieModifier("Multiply ",      " by 3",                      [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal * 3; }, Under3 | Relative,   true),
+    { "Add 1 to ", "", [](Roll & roll, Roll & other, std::vector<DieSelection> const & selections) { selections[0].SetValue(roll, other, [](unsigned char dieVal) { return dieVal + 1; }); }, Under6, true },
+
+    //NamedDieModifier("Add 1 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 1; }, Under6,  true),
+    //NamedDieModifier("Add 2 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 2; }, Under5,  true),
+    //NamedDieModifier("Add 3 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 3; }, Under4,  true),
+    //NamedDieModifier("Add 4 to ",      "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal + 4; }, Under3,  true),
+    //NamedDieModifier("Remove 1 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 1; }, Over1,   true),
+    //NamedDieModifier("Remove 2 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 2; }, Over2,   true),
+    //NamedDieModifier("Remove 3 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 3; }, Over3,   true),
+    //NamedDieModifier("Remove 4 from ", "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal - 4; }, Over4,   true),
+    //NamedDieModifier("Change ",        " to a 1",                    [](Roll const &,      unsigned char)        -> unsigned char { return 1; },          Not1,    false),
+    //NamedDieModifier("Change ",        " to a 2",                    [](Roll const &,      unsigned char)        -> unsigned char { return 2; },          Not2,    false),
+    //NamedDieModifier("Change ",        " to a 3",                    [](Roll const &,      unsigned char)        -> unsigned char { return 3; },          Not3,    false),
+    //NamedDieModifier("Change ",        " to a 4",                    [](Roll const &,      unsigned char)        -> unsigned char { return 4; },          Not4,    false),
+    //NamedDieModifier("Change ",        " to a 5",                    [](Roll const &,      unsigned char)        -> unsigned char { return 5; },          Not5,    false),
+    //NamedDieModifier("Change ",        " to a 6",                    [](Roll const &,      unsigned char)        -> unsigned char { return 6; },          Not6,    false),
+    //NamedDieModifier("Invert ",        "",                           [](Roll const &,      unsigned char dieVal) -> unsigned char { return 7 - dieVal; }, All,     true),
+    //NamedDieModifier("Change ",        " to Match Your Highest Die", [](Roll const & roll, unsigned char dieVal) -> unsigned char { return roll[0]; },    OwnNot6, false),
+    //NamedDieModifier("Change ",        " to Match Your Lowest Die",  [](Roll const & roll, unsigned char dieVal) -> unsigned char { return roll[2]; },    OwnNot1, false),
+    //NamedDieModifier("Multiply ",      " by 2",                      [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal * 2; }, Under4,  true),
+    //NamedDieModifier("Multiply ",      " by 3",                      [](Roll const &,      unsigned char dieVal) -> unsigned char { return dieVal * 3; }, Under3,  true),
   };
 
 
@@ -563,72 +802,24 @@ namespace Malator {
     return false;
   }
 
-  int StripLowestBit(int input) {
-    if (input == 0x0) {
-      return input;
-    }
-
-    int mask = ~0x0;
-    while ((input & mask) == input) {
-      mask <<= 1;
-    }
-
-    return input & mask;
-  }
-
-  int StripHighestBit(unsigned input) {
-    if (input == 0x0) {
-      return input;
-    }
-
-    unsigned mask = ~0x0;
-    while ((input & mask) == input) {
-      mask >>= 1;
-    }
-
-    return input & mask;
-  }
-
-  int GetRelativeMask(int rollValues, int requiredRelative) {
-    if (requiredRelative == 0x0) {
-      return ~0x0;
-    }
-    else {
-      if (requiredRelative & Mid) {
-        return StripLowestBit(StripHighestBit(static_cast<unsigned>(rollValues)));
-      }
-      else {
-        return rollValues;
-      }
-    }
-  }
-
   bool CanCreateModifierFromNamedParts(
     NamedRollCondition const & rollCond,
-    NamedDieCondition const &  dieCond,
+    NamedDieFilter const &     dieCond,
     NamedDieModifier const &   dieMod
   ) {
-    int const  requiredRelativeValues              = rollCond.requiredRolls & Relative;
-    int const  possibleRollRelative                = rollCond.possibleRolls & Relative;
-    int const  requiredDieRelative                 = dieCond.requiredRolls  & Relative;
-    int const  possibleDieRelative                 = dieCond.possibleRolls  & Relative;
-    int const  possibleModRelative                 = dieMod.possibleRolls   & Relative;
-
     int const  requiredRollValues                  = rollCond.requiredRolls & All;
     int const  possibleRollValues                  = rollCond.possibleRolls & All;
-    int const  possibleDieValues                   = dieCond.possibleRolls  & All & GetRelativeMask(possibleRollValues, requiredDieRelative);
+    int const  possibleDieValues                   = dieCond.possibleRolls  & All;
     int const  possibleModValues                   = dieMod.possibleRolls   & All;
 
     bool const diceValuesInRoll                    = ((possibleDieValues    & ~possibleRollValues) == 0x0);
     bool const diceValuesInMod                     = ((possibleDieValues    & ~possibleModValues)  == 0x0);
-    bool const diceRelativeAvailable               = ((possibleRollRelative & possibleDieRelative & possibleModRelative) != 0x0);
-    bool const diceValuesAndRollValuesAreIdentical = (possibleDieValues == possibleRollValues && requiredDieRelative == None);
-    bool const diceValuesAndModValuesAreIdentical  = (possibleDieValues == possibleModValues  && requiredDieRelative == None);
-    bool const diceValuesAreDefault                = (possibleDieValues == All) || (requiredDieRelative != None);
-    bool const modValuesAreDefault                 = (possibleModValues == All);
-    bool const rollValuesInMod                     = ((possibleRollValues    & ~possibleModValues) == 0x0);
+    bool const diceValuesAndRollValuesAreIdentical = (possibleDieValues == possibleRollValues);
+    bool const diceValuesAndModValuesAreIdentical  = (possibleDieValues == possibleModValues);
+    bool const diceValuesAreGeneral                = dieCond.generalOption;
+    bool const rollValuesInMod                     = ((possibleRollValues   & ~possibleModValues) == 0x0);
 
-    if (!diceValuesInRoll && !diceValuesAreDefault) {
+    if (!diceValuesInRoll && !diceValuesAreGeneral) {
       return false;
     }
 
@@ -636,15 +827,11 @@ namespace Malator {
       return false;
     }
 
-    if (!diceValuesInMod && !diceValuesAreDefault) {
+    if (!diceValuesInMod && !diceValuesAreGeneral) {
       return false;
     }
 
-    if (diceValuesAreDefault && !rollValuesInMod && !modValuesAreDefault) {
-      return false;
-    }
-
-    if (!diceRelativeAvailable) {
+    if (diceValuesAreGeneral && !rollValuesInMod) {
       return false;
     }
 
@@ -657,31 +844,29 @@ namespace Malator {
 
   Modifier CreateModifierFromNamedParts(
     NamedRollCondition const & rollCond,
-    NamedDieCondition const &  dieCond,
+    NamedDieFilter const &     dieCond,
     NamedDieModifier const &   dieMod
   ) {
-    std::string name = rollCond.name + dieMod.prefix + dieCond.name + dieMod.postfix;
-    return Modifier(
+    std::string name = rollCond.descriptionPart + dieMod.descriptionPrefix + dieCond.descriptionPart + dieMod.descriptionPostfix;
+    return {
       name,
       rollCond.func,
-      dieCond.func,
-      dieMod.func
-    );
+      { { {dieCond.func}, nullptr, dieMod.func } }
+    };
   }
 
   std::vector<Modifier> s_modifiers(
     1,
-    Modifier(
-      "None",
-      [](Roll const &) -> bool { return false; },
-      [](Roll const &, unsigned char) -> bool { return false; },
-      [](Roll const &, unsigned char dieVal) -> unsigned char { return dieVal; }
-    )
+    {
+      "Do Nothing",
+      [](Roll const &, Roll const &) { return false; },
+      {}
+    }
   );
 
   void GenerateModifiers(void) {
     for (auto & rollCond : s_namedRollConditions) {
-      for (auto & dieCond : s_namedDieConditions) {
+      for (auto & dieCond : s_namedDieFilters) {
         for (auto & dieMod : s_namedDieModifiers) {
           if (CanCreateModifierFromNamedParts(rollCond, dieCond, dieMod)) {
             s_modifiers.emplace_back(CreateModifierFromNamedParts(rollCond, dieCond, dieMod));
@@ -777,15 +962,17 @@ std::vector<std::vector<Malator::Modifier>> GenerateCards(std::vector<Rarity> co
 
     for (int i = 0; i < Malator::PossibleRolls; ++i) {
       Malator::Roll roll = Malator::s_Rolls[i];
-      Malator::Roll moddedRoll = Malator::GetBestMod(roll, mod);
 
       float wins = 0.0;
-
       for (int j = 0; j < Malator::PossibleRolls; ++j) {
-        if (moddedRoll.GetRollType() > Malator::s_Rolls[j].GetRollType()) {
+        Malator::Roll other = Malator::s_Rolls[j];
+
+        Malator::ModificationResult result = Malator::GetBestMod(roll, other, mod);
+
+        if (result.roll.GetRollType() > result.other.GetRollType()) {
           wins += 1.0f;
         }
-        else if (moddedRoll.GetRollType() == Malator::s_Rolls[j].GetRollType()) {
+        else if (result.roll.GetRollType() == result.other.GetRollType()) {
           wins += 0.5f;
         }
       }
@@ -904,7 +1091,7 @@ void DisplayRolls(std::string const & name, int namePadding, Malator::Roll const
     std::endl;
 }
 
-bool RunAiTurn(std::string const & playerName, std::vector<Malator::Modifier> & io_hand, Malator::Roll & io_roll, Malator::RollType rollToBeat) {
+bool RunAiTurn(std::string const & playerName, std::vector<Malator::Modifier> & io_hand, Malator::Roll & io_roll, Malator::Roll & io_other) {
   if (io_hand.empty()) {
     std::cout << playerName << " has no cards left and passes the turn." << std::endl;
     return true;
@@ -913,11 +1100,12 @@ bool RunAiTurn(std::string const & playerName, std::vector<Malator::Modifier> & 
   std::string cardName;
   bool passTurn = true;
   for (int i = io_hand.size() - 1; i >= 0; --i) {
-    Malator::Roll newRoll = Malator::GetBestMod(io_roll, io_hand[i]);
+    Malator::ModificationResult result = Malator::GetBestMod(io_roll, io_other, io_hand[i]);
 
-    if (newRoll.GetRollType() > rollToBeat) {
+    if (result.modified && result.roll.GetRollType() > result.other.GetRollType()) {
       cardName = io_hand[i].name;
-      io_roll = newRoll;
+      io_roll  = result.roll;
+      io_other = result.other;
       io_hand.erase(io_hand.begin() + i);
       passTurn = false;
       break;
@@ -940,18 +1128,10 @@ bool RunAiTurn(std::string const & playerName, std::vector<Malator::Modifier> & 
   return passTurn;
 }
 
-bool CanUseCard(Malator::Modifier const & card, Malator::Roll const & roll) {
-  if (!card.rollCond(roll)) {
-    return false;
-  }
+// HERE TODO
 
-  for (int i = 0; i < 3; ++i) {
-    if (card.dieCond(roll, roll[i])) {
-      return true;
-    }
-  }
-
-  return false;
+bool CanUseCard(Malator::Modifier const & card, Malator::Roll const & roll, Malator::Roll const & other) {
+  return Malator::CanApplyMod(roll, other, card, GetPossibleSelection(roll, other, card));
 }
 
 Malator::Roll UseCardOnValue(Malator::Modifier const & card, Malator::Roll const & roll, unsigned char value) {
