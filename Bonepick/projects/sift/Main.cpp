@@ -73,7 +73,7 @@ namespace {
     ) :
       type(type),
       rule(std::move(rule)),
-      minChildren(minChildren)
+      minChildren(minChildren),
       isOptional(isOptional),
       storesValues(storesValues)
     {}
@@ -355,6 +355,63 @@ namespace {
     return result;
   }
 
+  std::string_view GetSyntaxNodeLocationFromChildren(std::vector<SyntaxNode> const & nodes, int beginIndex, int childrenCount) {
+    if (nodes.size() == 0) {
+      return std::string_view();
+    }
+    else if (childrenCount + beginIndex == nodes.size()) {
+      return std::string_view(nodes[beginIndex].location.data());
+    }
+    else {
+      char const * locationBegin = nodes[beginIndex].location.data();
+      char const * locationEnd   = nodes[beginIndex + childrenCount].location.data();
+      return std::string_view(locationBegin, locationEnd - locationBegin);
+    }
+  }
+
+  bool TryMatchSyntaxDef(
+    std::vector<SyntaxNode> const & nodes,
+    SyntaxDefinition const &        syntaxDef,
+    Syntax const &                  syntax,
+    int &                           io_currentIndex
+  ) {
+    // HERE
+  }
+
+  bool DoesSectionMatchSyntaxDef(
+    std::vector<SyntaxNode> const & nodes,
+    int                             beginIndex,
+    SyntaxDefinition const &        syntaxDef,
+    Syntax const &                  syntax,
+    int &                           o_childrenCount
+  ) {
+    int currentIndex = beginIndex;
+    if (TryMatchSyntaxDef(nodes, syntaxDef, syntax, currentIndex)) {
+      o_childrenCount = currentIndex - beginIndex;
+      return true;
+    }
+
+    return false;
+  }
+
+  bool ReduceSyntaxTreeUsingDef(std::vector<SyntaxNode> & io_result, SyntaxDefinition const & syntaxDef, Syntax const & syntax) {
+    for (int i = 0; i < io_result.size() - syntaxDef.minChildren + 1; ++i) {
+      int consumedTokens = 0;
+      if (DoesSectionMatchSyntaxDef(io_result, i, syntaxDef, syntax, consumedTokens)) {
+        std::string_view location = GetSyntaxNodeLocationFromChildren(io_result, i, consumedTokens);
+
+        SyntaxNode newNode(syntaxDef.type, location, std::vector<SyntaxNode>(io_result.begin() + i, io_result.begin() + i + consumedTokens));
+
+        io_result.erase(io_result.begin() + i, io_result.begin() + i + consumedTokens);
+        io_result.insert(io_result.begin() + i, newNode);
+
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   bool ReduceSyntaxTree(std::vector<SyntaxNode> & io_result, Syntax const & syntax) {
     for (SyntaxDefinition const & syntaxDef : syntax) {
       if (ReduceSyntaxTreeUsingDef(io_result, syntaxDef, syntax)) {
@@ -364,31 +421,7 @@ namespace {
 
     return false;
   }
-
-  bool ReduceSyntaxTreeUsingDef(std::vector<SyntaxNode> & io_result, SyntaxDefinition const & syntaxDef, Syntax const & syntax) {
-    for (unsigned i = 0; i < io_result.size() - syntaxDef.minChildren + 1; ++i) {
-      if ()
-    }
-  }
-}
-
-bool TestGetTokensFromString() {
-  TokenSet tokens = {
-    TokenDefinition("123.", MatchStringType::Regex),
-    TokenDefinition("1234", MatchStringType::Literal),
-  };
-
-  std::vector<Token> results = GetTokensFromString("1234123e", tokens);
-
-  if (!(results.size() == 2)) return false;
-  if (!(results[0].matchDefinitions.size() == 2)) return false;
-  if (!(results[0].reference == "1234")) return false;
-  if (!(results[1].matchDefinitions.size() == 1)) return false;
-  if (!(results[1].reference == "123e")) return false;
-
-  return true;
 }
 
 int main(void) {
-  TestGetTokensFromString();
 }
