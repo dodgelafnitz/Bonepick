@@ -1,4 +1,5 @@
 #include <memory>
+#include <optional>
 #include <regex>
 #include <string>
 #include <string_view>
@@ -52,7 +53,6 @@ namespace {
   struct SyntaxDefinition;
   struct SyntaxNode;
 
-  struct SyntaxRule;
   struct SyntaxRuleIdentifier;
   struct SyntaxRuleToken;
   struct SyntaxRuleOptional;
@@ -60,13 +60,22 @@ namespace {
   struct SyntaxRuleOr;
   struct SyntaxRuleSequence;
 
+  using SyntaxRule = std::variant<
+    SyntaxRuleIdentifier,
+    SyntaxRuleToken,
+    SyntaxRuleOptional,
+    SyntaxRuleRepetition,
+    SyntaxRuleOr,
+    SyntaxRuleSequence
+  >;
+
   using Syntax = std::vector<SyntaxDefinition>;
 
   struct SyntaxDefinition {
     SyntaxDefinition(void) = default;
     SyntaxDefinition(
       std::string const &            type,
-      std::unique_ptr<SyntaxRule> && rule,
+      std::shared_ptr<SyntaxRule> && rule,
       unsigned                       minChildren,
       bool                           isOptional,
       bool                           storesValues
@@ -79,72 +88,33 @@ namespace {
     {}
 
     std::string                 type;
-    std::unique_ptr<SyntaxRule> rule;
+    std::shared_ptr<SyntaxRule> rule;
     unsigned                    minChildren;
     bool                        isOptional;
     bool                        storesValues;
   };
 
-  using SyntaxRule = std::variant<
-    struct SyntaxRuleIdentifier,
-    struct SyntaxRuleToken,
-    struct SyntaxRuleOptional,
-    struct SyntaxRuleRepetition,
-    struct SyntaxRuleOr,
-    struct SyntaxRuleSequence
-  >;
-
   struct SyntaxRuleIdentifier {
-    SyntaxRuleIdentifier(void) = default;
-    SyntaxRuleIdentifier(std::string const & type) :
-      type(type)
-    {}
-
     std::string type;
   };
 
   struct SyntaxRuleToken {
-    SyntaxRuleToken(void) = default;
-    SyntaxRuleToken(TokenDefinition const & tokenDef) :
-      tokenDef(tokenDef)
-    {}
-
     TokenDefinition tokenDef;
   };
 
   struct SyntaxRuleOptional {
-    SyntaxRuleOptional(void) = default;
-    SyntaxRuleOptional(std::unique_ptr<SyntaxRule> && rule) :
-      rule(std::move(rule))
-    {}
-
-    std::unique_ptr<SyntaxRule> rule;
+    std::shared_ptr<SyntaxRule> rule;
   };
 
   struct SyntaxRuleRepetition {
-    SyntaxRuleRepetition(void) = default;
-    SyntaxRuleRepetition(std::unique_ptr<SyntaxRule> && rule) :
-      rule(std::move(rule))
-    {}
-
-    std::unique_ptr<SyntaxRule> rule;
+    std::shared_ptr<SyntaxRule> rule;
   };
 
   struct SyntaxRuleOr {
-    SyntaxRuleOr(void) = default;
-    SyntaxRuleOr(std::vector<SyntaxRule> const & rules) :
-      rules(rules)
-    {}
-
     std::vector<SyntaxRule> rules;
   };
 
   struct SyntaxRuleSequence {
-    SyntaxRuleSequence(void) = default;
-    SyntaxRuleSequence(std::vector<SyntaxRule> const & rules) :
-      rules(rules)
-    {}
-
     std::vector<SyntaxRule> rules;
   };
 
@@ -164,22 +134,6 @@ namespace {
     std::string_view        location;
     std::vector<SyntaxNode> children;
   };
-
-  /*
-    identifier        := whitespace "[a-zA-Z_][a-zA-Z_0-9]*"
-    regex_pattern     := whitespace "\"([^\\]|(\\.))*\""
-    string_literal    := whitespace "'([^\\]|(\\.))*'"
-    whitespace        := [('\r' | '\n' | '\t' | ' ')...]
-    definition_header := identifier whitespace ':='
-    definition        := definition_header value
-    optional          := whitespace '[' value whitespace ']'
-    repetition        := value whitespace '...'
-    group             := whitespace '(' value whitespace ')'
-    or                := value (whitespace '|' value)...
-    sequence          := value value...
-    value             := identifier | regex_pattern | string_literal | optional | repetition | group | or | sequence
-    language          := [definition...] whitespace
-  */
 
   std::vector<Token> GetTokensFromString(std::string_view const & input, TokenSet const & allTokens);
   Token GetNextToken(std::string_view & io_str, TokenSet const & allTokens);
@@ -333,10 +287,9 @@ namespace {
     return false;
   }
 
-  std::vector<SyntaxNode> BuildSyntaxTreeFromTokens(std::vector<Token> const & tokens, Syntax const & syntax) {
-    std::vector<SyntaxNode> result = BuildInitialNodesFromTokens(tokens);
-    while (ReduceSyntaxTree(result, syntax));
-
+  SyntaxNode GetSyntaxNodeFromToken(Token const & token) {
+    SyntaxNode result;
+    result.location = token.reference;
     return result;
   }
 
@@ -347,11 +300,7 @@ namespace {
     for (Token const & token : tokens) {
       result.emplace_back(GetSyntaxNodeFromToken(token));
     }
-  }
 
-  SyntaxNode GetSyntaxNodeFromToken(Token const & token) {
-    SyntaxNode result;
-    result.location = token.reference;
     return result;
   }
 
@@ -369,38 +318,162 @@ namespace {
     }
   }
 
-  bool TryMatchSyntaxDef(
-    std::vector<SyntaxNode> const & nodes,
-    SyntaxDefinition const &        syntaxDef,
-    Syntax const &                  syntax,
-    int &                           io_currentIndex
+  SyntaxDefinition const * GetSyntaxDef(
+    Syntax const &      syntax,
+    std::string const & type
   ) {
-    // HERE
+    SyntaxDefinition * result = nullptr;
+
+    for (SyntaxDefinition const & definition : syntax) {
+      if (definition.type == type) {
+        return &definition;
+      }
+    }
+
+    return nullptr;
   }
 
-  bool DoesSectionMatchSyntaxDef(
+  bool TryReduceSyntaxTreeUsingRuleAtIndex(
     std::vector<SyntaxNode> const & nodes,
-    int                             beginIndex,
-    SyntaxDefinition const &        syntaxDef,
+    SyntaxRule const &              rule,
     Syntax const &                  syntax,
-    int &                           o_childrenCount
+    int                             nodeIndex,
+    std::vector<SyntaxNode> &       o_children,
+    int &                           o_consumedTokens
   ) {
-    int currentIndex = beginIndex;
-    if (TryMatchSyntaxDef(nodes, syntaxDef, syntax, currentIndex)) {
-      o_childrenCount = currentIndex - beginIndex;
+    o_consumedTokens = 0;
+
+    if (nodeIndex >= nodes.size()) {
+      return false;
+    }
+
+    if (std::holds_alternative<SyntaxRuleIdentifier>(rule)) {
+      auto const & identifierRule = std::get<SyntaxRuleIdentifier>(rule);
+
+      SyntaxDefinition const * definition = GetSyntaxDef(syntax, identifierRule.type);
+      if (definition == nullptr) {
+        return false;
+      }
+
+      if (nodes[nodeIndex].type == definition->type) {
+        if (definition->storesValues) {
+          o_children.emplace_back(nodes[nodeIndex]);
+        }
+
+        o_consumedTokens = 1;
+        return true;
+      }
+
+      return definition->isOptional;
+    }
+    else if (std::holds_alternative<SyntaxRuleToken>(rule)) {
+      auto const & tokenRule = std::get<SyntaxRuleToken>(rule);
+
+      std::string_view matchStr;
+      if (nodes[nodeIndex].type.empty() && DoesTokenMatch(nodes[nodeIndex].location, tokenRule.tokenDef, matchStr)) {
+        if (matchStr.length() == nodes[nodeIndex].location.length()) {
+          if (tokenRule.tokenDef.type == MatchStringType::Regex) {
+            o_children.emplace_back(nodes[nodeIndex]);
+          }
+
+          o_consumedTokens = 1;
+          return true;
+        }
+      }
+
+      return false;
+    }
+    else if (std::holds_alternative<SyntaxRuleOptional>(rule)) {
+      auto const & optionalRule = std::get<SyntaxRuleOptional>(rule);
+
+      TryReduceSyntaxTreeUsingRuleAtIndex(nodes, *optionalRule.rule, syntax, nodeIndex, o_children, o_consumedTokens);
+      return true;
+    }
+    else if (std::holds_alternative<SyntaxRuleRepetition>(rule)) {
+      auto const & repetitionRule = std::get<SyntaxRuleRepetition>(rule);
+
+      int                     currentConsumedTokens;
+      std::vector<SyntaxNode> currentChildren;
+
+      if (TryReduceSyntaxTreeUsingRuleAtIndex(nodes, *repetitionRule.rule, syntax, nodeIndex, currentChildren, currentConsumedTokens)) {
+        while (true) {
+          o_consumedTokens += currentConsumedTokens;
+          o_children.insert(o_children.end(), currentChildren.begin(), currentChildren.end());
+
+          currentConsumedTokens = 0;
+          currentChildren.clear();
+
+          if (!TryReduceSyntaxTreeUsingRuleAtIndex(nodes, *repetitionRule.rule, syntax, nodeIndex + o_consumedTokens, currentChildren, currentConsumedTokens) || currentConsumedTokens == 0) {
+            return true;
+          }
+        }
+      }
+      else {
+        return false;
+      }
+    }
+    else if (std::holds_alternative<SyntaxRuleOr>(rule)) {
+      auto const & orRule = std::get<SyntaxRuleOr>(rule);
+
+      for (SyntaxRule const & rule : orRule.rules) {
+        int                     currentConsumedTokens;
+        std::vector<SyntaxNode> currentChildren;
+        if (TryReduceSyntaxTreeUsingRuleAtIndex(nodes, rule, syntax, nodeIndex, currentChildren, currentConsumedTokens)) {
+          o_consumedTokens = currentConsumedTokens;
+          o_children       = currentChildren;
+          return true;
+        }
+      }
+
+      return false;
+    }
+    else if (std::holds_alternative<SyntaxRuleSequence>(rule)) {
+      auto const & sequenceRule = std::get<SyntaxRuleSequence>(rule);
+
+      int                     storedConsumedTokens = 0;
+      std::vector<SyntaxNode> storedChildren;
+
+      for (SyntaxRule const & rule : sequenceRule.rules) {
+        int                     currentConsumedTokens;
+        std::vector<SyntaxNode> currentChildren;
+        if (!TryReduceSyntaxTreeUsingRuleAtIndex(nodes, rule, syntax, nodeIndex + storedConsumedTokens, currentChildren, currentConsumedTokens)) {
+          return false;
+        }
+
+        storedConsumedTokens += currentConsumedTokens;
+        storedChildren.insert(storedChildren.end(), currentChildren.begin(), currentChildren.end());
+      }
+
+      o_consumedTokens = storedConsumedTokens;
+      o_children       = storedChildren;
       return true;
     }
 
     return false;
   }
 
-  bool ReduceSyntaxTreeUsingDef(std::vector<SyntaxNode> & io_result, SyntaxDefinition const & syntaxDef, Syntax const & syntax) {
-    for (int i = 0; i < io_result.size() - syntaxDef.minChildren + 1; ++i) {
-      int consumedTokens = 0;
-      if (DoesSectionMatchSyntaxDef(io_result, i, syntaxDef, syntax, consumedTokens)) {
-        std::string_view location = GetSyntaxNodeLocationFromChildren(io_result, i, consumedTokens);
+  bool TryReduceSyntaxTreeUsingDefAtIndex(
+    std::vector<SyntaxNode> const & nodes,
+    SyntaxDefinition const &        syntaxDef,
+    Syntax const &                  syntax,
+    int                             nodeIndex,
+    std::vector<SyntaxNode> &       io_children,
+    int &                           consumedTokens
+  ) {
+    if (nodeIndex < 0 || nodeIndex + syntaxDef.minChildren > nodes.size()) {
+      return false;
+    }
 
-        SyntaxNode newNode(syntaxDef.type, location, std::vector<SyntaxNode>(io_result.begin() + i, io_result.begin() + i + consumedTokens));
+    return TryReduceSyntaxTreeUsingRuleAtIndex(nodes, *syntaxDef.rule, syntax, nodeIndex, io_children, consumedTokens) && consumedTokens != 0;
+  }
+
+  bool ReduceSyntaxTreeUsingDef(std::vector<SyntaxNode> & io_result, SyntaxDefinition const & syntaxDef, Syntax const & syntax) {
+    for (int i = 0; i < std::min(io_result.size(), io_result.size() - syntaxDef.minChildren + 1); ++i) {
+      std::vector<SyntaxNode> children;
+      int                     consumedTokens;
+      if (TryReduceSyntaxTreeUsingDefAtIndex(io_result, syntaxDef, syntax, i, children, consumedTokens)) {
+        std::string_view location = GetSyntaxNodeLocationFromChildren(io_result, i, consumedTokens);
+        SyntaxNode       newNode  = { syntaxDef.type, location, children };
 
         io_result.erase(io_result.begin() + i, io_result.begin() + i + consumedTokens);
         io_result.insert(io_result.begin() + i, newNode);
@@ -421,7 +494,116 @@ namespace {
 
     return false;
   }
+
+  std::vector<SyntaxNode> BuildSyntaxTreeFromTokens(std::vector<Token> const & tokens, Syntax const & syntax) {
+    std::vector<SyntaxNode> result = BuildInitialNodesFromTokens(tokens);
+    while (ReduceSyntaxTree(result, syntax));
+
+    return result;
+  }
 }
 
+/*
+  identifier        := whitespace "[a-zA-Z_][a-zA-Z_0-9]*"
+  regex_pattern     := whitespace "\"([^\\]|(\\.))*\""
+  string_literal    := whitespace "'([^\\]|(\\.))*'"
+  whitespace        := [('\r' | '\n' | '\t' | ' ')...]
+  definition_header := identifier whitespace ':='
+  definition        := definition_header value
+  optional          := whitespace '[' value whitespace ']'
+  repetition        := value whitespace '...'
+  group             := whitespace '(' value whitespace ')'
+  or                := value (whitespace '|' value)...
+  sequence          := value value...
+  value             := identifier | regex_pattern | string_literal | optional | repetition | group | or | sequence
+  language          := [definition...] whitespace
+*/
+
 int main(void) {
+  TokenSet tokens = {
+    TokenDefinition("[a-zA-Z]+", MatchStringType::Regex),
+    TokenDefinition(" ", MatchStringType::Literal),
+    TokenDefinition(".", MatchStringType::Literal),
+    TokenDefinition("!", MatchStringType::Literal),
+    TokenDefinition("?", MatchStringType::Literal),
+  };
+
+  /*
+    word        := whitespace "[a-zA-Z]+"
+    sentence    := word ... punctuation 
+    punctuation := whitespace (('.' ...) | (('!' | '?') ...))
+    whitespace  := [('\r' | '\n' | '\t' | ' ')...]
+    statement   := sentence ...
+  */
+  
+  auto sentenceTokens = GetTokensFromString("Let the seas part and the fish die. I do not want your failures!!!", tokens);
+
+  Syntax syntax = {
+    SyntaxDefinition("whitespace",
+      std::make_shared<SyntaxRule>(
+        SyntaxRuleOptional { std::make_shared<SyntaxRule>(
+          SyntaxRuleRepetition { std::make_shared<SyntaxRule>(
+            SyntaxRuleOr {{
+              SyntaxRuleToken { TokenDefinition("\\r", MatchStringType::Literal) },
+              SyntaxRuleToken { TokenDefinition("\\n", MatchStringType::Literal) },
+              SyntaxRuleToken { TokenDefinition("\\t", MatchStringType::Literal) },
+              SyntaxRuleToken { TokenDefinition(" ",   MatchStringType::Literal) },
+            }}
+          )}
+        )}
+      ),
+      0, true, false
+    ),
+    SyntaxDefinition("word",
+      std::make_shared<SyntaxRule>(
+        SyntaxRuleSequence {{
+          SyntaxRuleIdentifier { "whitespace" },
+          SyntaxRuleToken { TokenDefinition("[a-zA-Z]+", MatchStringType::Regex) },
+        }}
+      ),
+      1, false, true
+    ),
+    SyntaxDefinition("sentence",
+      std::make_shared<SyntaxRule>(
+        SyntaxRuleSequence {{
+          SyntaxRuleRepetition { std::make_shared<SyntaxRule>(
+            SyntaxRuleIdentifier { "word" }
+          )},
+          SyntaxRuleIdentifier { "punctuation" },
+        }}
+      ),
+      2, false, true
+    ),
+    SyntaxDefinition("punctuation",
+      std::make_shared<SyntaxRule>(
+        SyntaxRuleSequence {{
+          SyntaxRuleIdentifier { "whitespace" },
+          SyntaxRuleOr {{
+            SyntaxRuleRepetition { std::make_shared<SyntaxRule>(
+              SyntaxRuleToken { TokenDefinition(".", MatchStringType::Literal) }
+            )},
+            SyntaxRuleRepetition { std::make_shared<SyntaxRule>(
+              SyntaxRuleOr {{
+                SyntaxRuleToken { TokenDefinition("!", MatchStringType::Literal) },
+                SyntaxRuleToken { TokenDefinition("?", MatchStringType::Literal) }
+              }}
+            )},
+          }}
+        }}
+      ),
+      1, false, false
+    ),
+    SyntaxDefinition("statement",
+      std::make_shared<SyntaxRule>(
+        SyntaxRuleRepetition { std::make_shared<SyntaxRule>(
+          SyntaxRuleIdentifier { "sentence" }
+        )}
+      ),
+      1, false, true
+    ),
+  };
+
+  std::vector<SyntaxNode> nodes = BuildSyntaxTreeFromTokens(sentenceTokens, syntax);
+
+  return 0;
 }
