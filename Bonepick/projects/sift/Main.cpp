@@ -256,9 +256,6 @@ namespace {
     if (nodes.size() == 0) {
       return std::string_view();
     }
-    else if (childrenCount + beginIndex == nodes.size()) {
-      return std::string_view(nodes[beginIndex].location.data());
-    }
     else {
       char const * locationBegin = nodes[beginIndex].location.data();
       char const * locationEnd   = nodes[beginIndex + childrenCount - 1].location.data() + nodes[beginIndex + childrenCount - 1].location.length();
@@ -279,6 +276,74 @@ namespace {
     }
 
     return nullptr;
+  }
+
+  bool TryReduceSyntaxTreeOnceForDefinitionTypes(
+    std::vector<SyntaxNode> & io_children,
+    Syntax const &            syntax,
+    std::string const &       context
+  ) {
+    for (int i = 0; i < io_children.size(); ++i) {
+      SyntaxNode const & currentNode = io_children[i];
+
+      for (SyntaxDefinition const & definition : syntax) {
+        if (context == definition.context && currentNode.type == definition.type) {
+
+          bool removeNode = false;
+          std::vector<SyntaxNode> replaceNodes;
+
+          switch (definition.storage) {
+            case StorageType::Branch:
+            case StorageType::Leaf: {
+              continue;
+            }
+            case StorageType::Absent: {
+              removeNode = true;
+              break;
+            }
+            case StorageType::Splitting: {
+              if (currentNode.children.size() == 1) {
+                replaceNodes = currentNode.children;
+                removeNode = true;
+                break;
+              }
+              else {
+                continue;
+              }
+            }
+            case StorageType::PassThrough: {
+              replaceNodes = currentNode.children;
+              removeNode = true;
+              break;
+            }
+            case StorageType::Removed: {
+              // error on this
+              continue;
+            }
+          }
+
+          if (removeNode) {
+            io_children.erase(io_children.begin() + i);
+
+            if (!replaceNodes.empty()) {
+              io_children.insert(io_children.begin() + i, replaceNodes.begin(), replaceNodes.end());
+            }
+          }
+
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  void ReduceSyntaxTreeForDefinitionTypes(
+    std::vector<SyntaxNode> & io_children,
+    Syntax const &            syntax,
+    std::string const &       context
+  ) {
+    while (TryReduceSyntaxTreeOnceForDefinitionTypes(io_children, syntax, context));
   }
 
   bool TryReduceSyntaxTreeUsingRuleAtIndex(
@@ -441,6 +506,7 @@ namespace {
 
       if (TryReduceSyntaxTreeUsingRuleAtIndex(nodes, *contextRule.rule, syntax, nodeIndex, o_children, o_consumedNodes)) {
         while (ReduceSyntaxTree(o_children, syntax, contextRule.context));
+        ReduceSyntaxTreeForDefinitionTypes(o_children, syntax, contextRule.context);
 
         return true;
       }
@@ -877,9 +943,10 @@ SyntaxDefinition BuildSyntaxDefinitonFromDefinitionNode(SyntaxNode const & defin
 }
 
 struct DefinitionDependencyInfo {
-  SyntaxDefinition *              definition;
+  std::vector<SyntaxDefinition *> definitions;
   std::unordered_set<std::string> dependants;
   int                             cycles;
+  std::string                     type;
 };
 
 std::unordered_set<std::string> GetDependenciesFromRule(SyntaxRule const & rule) {
@@ -986,20 +1053,37 @@ void EvaluateMinChildren(Syntax & io_syntax) {
     definition.minChildren = 1;
   }
 
-  std::vector<DefinitionDependencyInfo> dependancyInfo(io_syntax.size());
+  std::vector<DefinitionDependencyInfo> dependancyInfo;
   std::unordered_map<std::string, int>  definitionIndices;
 
-  for (int i = 0; i < io_syntax.size(); ++i) {
-    definitionIndices[io_syntax[i].type] = i;
-    dependancyInfo[i].cycles             = 0;
-    dependancyInfo[i].definition         = &io_syntax[i];
+  dependancyInfo.reserve(io_syntax.size());
+
+  for (auto & syntax : io_syntax) {
+    if (definitionIndices.count(syntax.type) == 0) {
+      unsigned const nextIndex = dependancyInfo.size();
+      dependancyInfo.emplace_back();
+      dependancyInfo.back().cycles = 0;
+      dependancyInfo.back().type = syntax.type;
+
+      definitionIndices[syntax.type] = nextIndex;
+    }
+
+    DefinitionDependencyInfo & currentInfo = dependancyInfo[definitionIndices[syntax.type]];
+    currentInfo.definitions.emplace_back(&syntax);
   }
 
   for (auto & info : dependancyInfo) {
-    std::unordered_set<std::string> dependencies = GetDependenciesFromRule(*info.definition->rule);
+    std::unordered_set<std::string> dependencies;
+    for (auto & definition : info.definitions) {
+      std::unordered_set<std::string> currentDependencies = GetDependenciesFromRule(*definition->rule);
+
+      for (std::string const & type : currentDependencies) {
+        dependencies.emplace(type);
+      }
+    }
 
     for (auto dependency : dependencies) {
-      dependancyInfo[definitionIndices[dependency]].dependants.emplace(info.definition->type);
+      dependancyInfo[definitionIndices[dependency]].dependants.emplace(info.type);
     }
   }
 
@@ -1017,7 +1101,7 @@ void EvaluateMinChildren(Syntax & io_syntax) {
     }
   );
 
-  for (int i = 0; i < io_syntax.size(); ++i) {
+  for (int i = 0; i < dependancyInfo.size(); ++i) {
     evaluationQueue.emplace(i);
   }
 
@@ -1034,16 +1118,21 @@ void EvaluateMinChildren(Syntax & io_syntax) {
       //error message here
     }
 
-    int prevMinChildren = info.definition->minChildren;
-    info.definition->minChildren = EvaluateMinChildrenForRule(*info.definition->rule, io_syntax);
+    bool reevaluateDependants = false;
+    for (auto const & definition : info.definitions) {
+      int prevMinChildren = definition->minChildren;
+      definition->minChildren = EvaluateMinChildrenForRule(*definition->rule, io_syntax);
 
-    if (prevMinChildren == info.definition->minChildren) {
-      continue;
+      if (prevMinChildren != definition->minChildren) {
+        reevaluateDependants = true;
+      }
     }
 
-    for (std::string const & dependant : info.dependants) {
-      int nextIndex = definitionIndices[dependant];
-      evaluationQueue.emplace(nextIndex);
+    if (reevaluateDependants) {
+      for (std::string const & dependant : info.dependants) {
+        int nextIndex = definitionIndices[dependant];
+        evaluationQueue.emplace(nextIndex);
+      }
     }
   }
 }
@@ -1066,7 +1155,7 @@ Syntax BuildSyntaxFromSyntaxTree(std::vector<SyntaxNode> const & languageNodes) 
   std::string currentContext = "";
 
   for (SyntaxNode const & node : language.children) {
-    if (node.type == "context") {
+    if (node.type == "context_header") {
       ASSERT(node.children.size() == 1);
       ASSERT(node.children[0].type == "identifier");
 
