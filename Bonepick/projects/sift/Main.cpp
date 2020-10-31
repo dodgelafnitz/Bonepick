@@ -673,6 +673,25 @@ Syntax languageSyntax = {
     1, StorageType::Branch, ""
   ),
 
+  SyntaxDefinition("context",
+    std::make_shared<SyntaxRule>(
+      SyntaxRuleSequence {{
+        SyntaxRuleToken   { TokenDefinition("<", MatchStringType::Literal) },
+        SyntaxRuleContext { "context_access", std::make_shared<SyntaxRule>(
+          SyntaxRuleRepetition { std::make_shared<SyntaxRule>(
+            SyntaxRuleNot { std::make_shared<SyntaxRule>(
+              SyntaxRuleOr {{
+                SyntaxRuleToken { TokenDefinition("<", MatchStringType::Literal) },
+                SyntaxRuleToken { TokenDefinition(">", MatchStringType::Literal) },
+              }}
+            )}
+          )}
+        )},
+        SyntaxRuleToken   { TokenDefinition(">", MatchStringType::Literal) },
+      }}
+    ),
+    3, StorageType::Branch, "definition_value"
+  ),
   SyntaxDefinition("identifier",
     identifierRule,
     1, StorageType::Leaf, "definition_value"
@@ -729,25 +748,6 @@ Syntax languageSyntax = {
         SyntaxRuleToken      { TokenDefinition("[", MatchStringType::Literal) },
         SyntaxRuleIdentifier { "value" },
         SyntaxRuleToken      { TokenDefinition("]", MatchStringType::Literal) },
-      }}
-    ),
-    3, StorageType::Branch, "definition_value"
-  ),
-  SyntaxDefinition("context",
-    std::make_shared<SyntaxRule>(
-      SyntaxRuleSequence {{
-        SyntaxRuleToken   { TokenDefinition("<", MatchStringType::Literal) },
-        SyntaxRuleContext { "context_access", std::make_shared<SyntaxRule>(
-          SyntaxRuleRepetition { std::make_shared<SyntaxRule>(
-            SyntaxRuleNot { std::make_shared<SyntaxRule>(
-              SyntaxRuleOr {{
-                SyntaxRuleToken { TokenDefinition("<", MatchStringType::Literal) },
-                SyntaxRuleToken { TokenDefinition(">", MatchStringType::Literal) },
-              }}
-            )}
-          )}
-        )},
-        SyntaxRuleToken   { TokenDefinition(">", MatchStringType::Literal) },
       }}
     ),
     3, StorageType::Branch, "definition_value"
@@ -809,7 +809,7 @@ Syntax languageSyntax = {
     identifierRule,
     1, StorageType::Leaf, "definition_name"
   ),
-      
+
   SyntaxDefinition("context",
     std::make_shared<SyntaxRule>(
       SyntaxRuleSequence {{
@@ -822,7 +822,7 @@ Syntax languageSyntax = {
         )},
       }}
     ),
-    3, StorageType::Leaf, "context_access"
+    3, StorageType::PassThrough, "context_access"
   ),
   SyntaxDefinition("identifier",
     identifierRule,
@@ -1239,47 +1239,61 @@ int main(void) {
   };
 
   std::string languageDef =
-    "[removed]     whitespace      := \"[\\r\\n\\t ]+\"; "
-    "              definition      := ['[' <definition_type: .> ']'] <definition_name: .> ':=' <definition_value: !';'...> ';'; "
-    "              context_header  := identifier ':'; "
-    "[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
-    "              language        := (definition | context_header)...; "
-    
+    "[removed]     whitespace         := \"[\\r\\n\\t ]+\"; "
+    "              definition         := ['[' <definition_type: .> ']'] <definition_name: .> ':=' <definition_value: !';'...> ';'; "
+    "              context_header     := identifier ':'; "
+    "[leaf]        identifier         := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+    "              language           := (definition | context_header)...; "
+
     "definition_value: "
-    "[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
-    "[leaf]        any             := '.'; "
-    "[leaf]        regex_pattern   := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
-    "[leaf]        string_literal  := \"'([^'\\\\]|(\\\\.))*'\"; "
-    "[passthrough] value           := identifier | any | regex_pattern | string_literal | group | optional | context | not | repetition | or | sequence; "
-    "[passthrough] group           := '(' value ')'; "
-    "              optional        := '[' value ']'; "
-    "              context         := '<' <context_access: !('<' | '>')...> '>'; "
-    "              not             := '!' value; "
-    "              repetition      := value '...'; "
-    "              or              := value ('|' value)...; "
-    "              sequence        := value value...; "
-    
+    "              context            := '<' <context_access: !('<' | '>')...> '>'; "
+    "[leaf]        identifier         := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+    "[leaf]        any                := '.'; "
+    "[leaf]        regex_pattern      := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
+    "[leaf]        string_literal     := \"'([^'\\\\]|(\\\\.))*'\"; "
+    "[passthrough] value              := identifier | any | regex_pattern | string_literal | group | optional | context | not | repetition | or | sequence; "
+    "[passthrough] group              := '(' value ')'; "
+    "              optional           := '[' value ']'; "
+    "              not                := '!' value; "
+    "              repetition         := value '...'; "
+    "              or                 := value ('|' value)...; "
+    "              sequence           := value value...; "
+
     "definition_type: "
-    "[leaf]        definition_type := \"removed|leaf|absent|passthrough|splitting|branch\"; "
-    
+    "[leaf]        definition_type    := \"removed|leaf|absent|passthrough|splitting|branch\"; "
+
     "definition_name: "
-    "[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
-    
+    "[leaf]        identifier         := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+
     "context_access: "
-    "              context         := identifier ':' <definition_value: . ...>; "
-    "[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+    "[passthrough] context_definition := identifier ':' <definition_value: . ...>; "
+    "[leaf]        identifier         := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
   ;
 
-  
   std::string siftLanguage =
-    "[removed] whitespace                 := \"[\\r\\n\\t ]+\"; "
-    "[removed] block_comment              := \"/\\*(.|[\\r\\n])\\**/\"; "
-    "[removed] line_comment               := \"//.*\"; "
+    "[removed]     whitespace                            := \"[\\r\\n\\t ]+\"; "
+    "[removed]     block_comment                         := \"/\\*(.|[\\r\\n])\\**/\"; "
+    "[removed]     line_comment                          := \"//.*\"; "
+    "              content                               := <struct_content: . ...>; "
+
+    "struct_content: "
+    "              member_definition                     := ['~'] <variable_definition: !('=' | '\\'')...> ['\\''] '=' value ';'; "
+    "              inheritence_definition                := ['~'] '[' value ']'; "
+    "[passthrough] value                                 := identifier | float | int | string | function | struct | array | function_call | member_access | element_access | operator | group; "
+    "              struct                                := '{' <struct_content: !('{' | '}')...> '}'; "
+    "              function                              := '(' [<variable_definition: !(',' | ')')...> [',' <variable_definition: !(',' | ')')...>]...] [','] ')' '->' value; "
+    "              array                                 := '[' tuple ']'; "
+    "              function_call                         := value '(' tuple ')'; "
+    "              tuple                                 := [value [',' value]...] [',']; "
+    "              
+
+    "variable_definition: "
+    "              "
+
     "[leaf]    integer                    := \"[0-9]+\"; "
     "[leaf]    float                      := \"([.][0-9]+)|([0-9]+[.][0-9]*)\"; "
     "[leaf]    string                     := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
     "[leaf]    module                     := \"`([^'\\\\]|(\\\\.))*`\"; "
-    "[leaf]    collection                 := '~~'; "
     "[leaf]    identifier                 := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
     "          struct_content             := [(member_definition | inheritance_tag | collection_push)...]; "
     "          struct                     := '{' struct_content '}'; "
@@ -1316,5 +1330,5 @@ int main(void) {
     syntaxTokens = BuildTokenSetFromSyntaxTree(nodes);
   }
 
-  return 0;
+  return syntax.size() == 21;
 }
