@@ -65,9 +65,6 @@ namespace {
   struct SyntaxRuleRepetition;
   struct SyntaxRuleOr;
   struct SyntaxRuleSequence;
-  struct SyntaxRuleNot;
-  struct SyntaxRuleAny;
-  struct SyntaxRuleContext;
 
   using SyntaxRule = std::variant<
     SyntaxRuleIdentifier,
@@ -76,9 +73,6 @@ namespace {
     SyntaxRuleRepetition,
     SyntaxRuleOr,
     SyntaxRuleSequence,
-    SyntaxRuleNot,
-    SyntaxRuleAny,
-    SyntaxRuleContext
   >;
 
   using Syntax = std::vector<SyntaxDefinition>;
@@ -87,9 +81,7 @@ namespace {
     Branch,
     Absent,
     Leaf,
-    PassThrough,
-    Splitting,
-    Context,
+    Variant,
     Removed
   };
 
@@ -138,18 +130,6 @@ namespace {
 
   struct SyntaxRuleSequence {
     std::vector<SyntaxRule> rules;
-  };
-
-  struct SyntaxRuleNot {
-    std::shared_ptr<SyntaxRule> rule;
-  };
-
-  struct SyntaxRuleAny {
-  };
-
-  struct SyntaxRuleContext {
-    std::string                 context;
-    std::shared_ptr<SyntaxRule> rule;
   };
 
   struct SyntaxNode {
@@ -301,17 +281,7 @@ namespace {
               removeNode = true;
               break;
             }
-            case StorageType::Splitting: {
-              if (currentNode.children.size() == 1) {
-                replaceNodes = currentNode.children;
-                removeNode = true;
-                break;
-              }
-              else {
-                continue;
-              }
-            }
-            case StorageType::PassThrough: {
+            case StorageType::Variant: {
               replaceNodes = currentNode.children;
               removeNode = true;
               break;
@@ -378,16 +348,7 @@ namespace {
           case StorageType::Absent: {
             break;
           }
-          case StorageType::Splitting: {
-            if (nodes[nodeIndex].children.size() == 1) {
-              o_children.insert(o_children.end(), nodes[nodeIndex].children.front());
-            }
-            else {
-              o_children.emplace_back(nodes[nodeIndex]);
-            }
-            break;
-          }
-          case StorageType::PassThrough: {
+          case StorageType::Variant: {
             o_children.insert(o_children.end(), nodes[nodeIndex].children.begin(), nodes[nodeIndex].children.end());
             break;
           }
@@ -481,37 +442,6 @@ namespace {
       o_children      = storedChildren;
       return true;
     }
-    else if (std::holds_alternative<SyntaxRuleNot>(rule)) {
-      auto const & notRule = std::get<SyntaxRuleNot>(rule);
-
-      int                     currentConsumedNodes;
-      std::vector<SyntaxNode> currentChildren;
-
-      if (TryReduceSyntaxTreeUsingRuleAtIndex(nodes, *notRule.rule, syntax, nodeIndex, currentChildren, currentConsumedNodes) && currentConsumedNodes != 0) {
-        return false;
-      }
-      else {
-        o_children.emplace_back(nodes[nodeIndex]);
-        o_consumedNodes = 1;
-        return true;
-      }
-    }
-    else if (std::holds_alternative<SyntaxRuleAny>(rule)) {
-      o_children.emplace_back(nodes[nodeIndex]);
-      o_consumedNodes = 1;
-      return true;
-    }
-    else if (std::holds_alternative<SyntaxRuleContext>(rule)) {
-      auto const & contextRule = std::get<SyntaxRuleContext>(rule);
-
-      if (TryReduceSyntaxTreeUsingRuleAtIndex(nodes, *contextRule.rule, syntax, nodeIndex, o_children, o_consumedNodes)) {
-        while (ReduceSyntaxTree(o_children, syntax, contextRule.context));
-        ReduceSyntaxTreeForDefinitionTypes(o_children, syntax, contextRule.context);
-
-        return true;
-      }
-      return false;
-    }
 
     return false;
   }
@@ -579,35 +509,23 @@ namespace {
   }
 }
 
-//"[removed]     whitespace      := \"[\\r\\n\\t ]+\"; "
-//"              definition      := ['[' <definition_type: .> ']'] <definition_name: .> ':=' <definition_value: !';'...> ';'; "
-//"              context_header  := identifier ':'; "
-//"              language        := (definition | context_header)...; "
-//"[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+//"[removed] whitespace      := \"[\\r\\n\\t ]+\"; "
 //
-//"definition_value: "
-//"[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
-//"[leaf]        any             := '.'; "
-//"[leaf]        regex_pattern   := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
-//"[leaf]        string_literal  := \"'([^'\\\\]|(\\\\.))*'\"; "
-//"[passthrough] value           := identifier | any | regex_pattern | string_literal | group | optional | context | not | repetition | or | sequence; "
-//"[passthrough] group           := '(' value ')'; "
-//"              optional        := '[' value ']'; "
-//"              context         := '<' <context_access: !('<' | '>')...> '>'; "
-//"              not             := '!' value; "
-//"              repetition      := value '...'; "
-//"              or              := value ('|' value)...; "
-//"              sequence        := value value...; "
+//"[leaf]    identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+//"[leaf]    regex_pattern   := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
+//"[leaf]    string_literal  := \"'([^'\\\\]|(\\\\.))*'\"; "
+//"[leaf]    definition_type := \"removed|leaf|absent|variant|branch\"; "
 //
-//"definition_type: "
-//"[leaf]        definition_type := \"removed|leaf|absent|passthrough|splitting|branch\"; "
+//"[variant] value           := identifier | regex_pattern | string_literal | group | optional | repetition | or | sequence; "
+//"[variant] group           := '(' value ')'; "
 //
-//"definition_name: "
-//"[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+//"          definition      := ['[' definition_type ']'] identifier ':=' value ';'; "
+//"          language        := definition...; "
 //
-//"context_access: "
-//"              context         := identifier ':' <definition_value: . ...>; "
-//"[leaf]        identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+//"          optional        := '[' value ']'; "
+//"          repetition      := value '...'; "
+//"          or              := value ('|' value)...; "
+//"          sequence        := value value...; "
 
 auto identifierRule = std::make_shared<SyntaxRule>(
   SyntaxRuleToken { TokenDefinition("[a-zA-Z_][a-zA-Z_0-9]*", MatchStringType::Regex) }
@@ -730,7 +648,7 @@ Syntax languageSyntax = {
         SyntaxRuleIdentifier { "sequence" },
       }}
     ),
-    1, StorageType::PassThrough, "definition_value"
+    1, StorageType::Variant, "definition_value"
   ),
   SyntaxDefinition("group",
     std::make_shared<SyntaxRule>(
@@ -740,7 +658,7 @@ Syntax languageSyntax = {
         SyntaxRuleToken      { TokenDefinition(")", MatchStringType::Literal) },
       }}
     ),
-    3, StorageType::PassThrough, "definition_value"
+    3, StorageType::Variant, "definition_value"
   ),
   SyntaxDefinition("optional",
     std::make_shared<SyntaxRule>(
@@ -799,7 +717,7 @@ Syntax languageSyntax = {
   SyntaxDefinition("definition_type",
     std::make_shared<SyntaxRule>(
       SyntaxRuleOptional { std::make_shared<SyntaxRule>(
-        SyntaxRuleToken { TokenDefinition("removed|leaf|absent|passthrough|splitting|branch|context", MatchStringType::Regex) }
+        SyntaxRuleToken { TokenDefinition("removed|leaf|absent|variant|branch|context", MatchStringType::Regex) }
       )}
     ),
     1, StorageType::Leaf, "definition_type"
@@ -822,7 +740,7 @@ Syntax languageSyntax = {
         )},
       }}
     ),
-    3, StorageType::PassThrough, "context_access"
+    3, StorageType::Variant, "context_access"
   ),
   SyntaxDefinition("identifier",
     identifierRule,
@@ -840,11 +758,8 @@ StorageType GetStorageTypeFromString(std::string_view const & str) {
   else if (str == "absent") {
     return StorageType::Absent;
   }
-  else if (str == "passthrough") {
-    return StorageType::PassThrough;
-  }
-  else if (str == "splitting") {
-    return StorageType::Splitting;
+  else if (str == "variant") {
+    return StorageType::Variant;
   }
   else if (str == "branch") {
     return StorageType::Branch;
@@ -894,19 +809,6 @@ SyntaxRule BuildSyntaxRuleFromSyntaxNode(SyntaxNode const & syntaxNode) {
       sequenceNode.rules.emplace_back(BuildSyntaxRuleFromSyntaxNode(rule));
     }
     result.emplace<SyntaxRuleSequence>(sequenceNode);
-  }
-  else if (syntaxNode.type == "not") {
-    ASSERT(!syntaxNode.children.empty());
-    result.emplace<SyntaxRuleNot>(SyntaxRuleNot { std::make_shared<SyntaxRule>(BuildSyntaxRuleFromSyntaxNode(syntaxNode.children[0])) });
-  }
-  else if (syntaxNode.type == "any") {
-    ASSERT(syntaxNode.children.empty());
-    result.emplace<SyntaxRuleAny>();
-  }
-  else if (syntaxNode.type == "context") {
-    ASSERT(syntaxNode.children.size() == 2);
-    ASSERT(syntaxNode.children[0].type == "identifier");
-    result.emplace<SyntaxRuleContext>(SyntaxRuleContext { std::string(syntaxNode.children[0].location), std::make_shared<SyntaxRule>(BuildSyntaxRuleFromSyntaxNode(syntaxNode.children[1])) });
   }
   else {
     ERROR(std::string("Unexpected type '") + syntaxNode.type + "'");
@@ -980,10 +882,6 @@ std::unordered_set<std::string> GetDependenciesFromRule(SyntaxRule const & rule)
 
     return result;
   }
-  else if (std::holds_alternative<SyntaxRuleNot>(rule)) {
-    auto const & notRule = std::get<SyntaxRuleNot>(rule);
-    return GetDependenciesFromRule(*notRule.rule);
-  }
 
   return {};
 }
@@ -1034,17 +932,7 @@ int EvaluateMinChildrenForRule(SyntaxRule const & rule, Syntax const & syntax) {
     }
     return total;
   }
-  else if (std::holds_alternative<SyntaxRuleNot>(rule)) {
-    return 1;
-  }
-  else if (std::holds_alternative<SyntaxRuleAny>(rule)) {
-    return 1;
-  }
-  else if (std::holds_alternative<SyntaxRuleContext>(rule)) {
-    auto const & contextRule = std::get<SyntaxRuleContext>(rule);
-    return EvaluateMinChildrenForRule(*contextRule.rule, syntax);
-  }
-
+   
   return 0;
 }
 
@@ -1222,7 +1110,7 @@ int main(void) {
     TokenDefinition("[a-zA-Z_][a-zA-Z_0-9]*", MatchStringType::Regex),
     TokenDefinition("\"([^\"\\\\]|(\\\\.))*\"", MatchStringType::Regex),
     TokenDefinition("'([^'\\\\]|(\\\\.))*'", MatchStringType::Regex),
-    TokenDefinition("removed|leaf|absent|passthrough|splitting|branch", MatchStringType::Regex),
+    TokenDefinition("removed|leaf|absent|variant|branch", MatchStringType::Regex),
     TokenDefinition("...", MatchStringType::Literal),
     TokenDefinition("(", MatchStringType::Literal),
     TokenDefinition(")", MatchStringType::Literal),
@@ -1238,6 +1126,28 @@ int main(void) {
     TokenDefinition("!", MatchStringType::Literal),
   };
 
+  // A node can have multiple types, just like tokens?
+  // variant nodes are their child?
+  std::string languageDefIdeal =
+    "[removed] whitespace      := \"[\\r\\n\\t ]+\"; "
+
+    "[leaf]    identifier      := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
+    "[leaf]    regex_pattern   := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
+    "[leaf]    string_literal  := \"'([^'\\\\]|(\\\\.))*'\"; "
+    "[leaf]    definition_type := \"removed|leaf|absent|variant|branch\"; "
+
+    "[variant] value           := identifier | regex_pattern | string_literal | group | optional | repetition | or | sequence; "
+    "[variant] group           := '(' value ')'; "
+
+    "          definition      := ['[' definition_type ']'] identifier ':=' value ';'; "
+    "          language        := definition...; "
+
+    "          optional        := '[' value ']'; "
+    "          repetition      := value '...'; "
+    "          or              := value ('|' value)...; "
+    "          sequence        := value value...; "
+  ;
+
   std::string languageDef =
     "[removed]     whitespace         := \"[\\r\\n\\t ]+\"; "
     "              definition         := ['[' <definition_type: .> ']'] <definition_name: .> ':=' <definition_value: !';'...> ';'; "
@@ -1251,8 +1161,8 @@ int main(void) {
     "[leaf]        any                := '.'; "
     "[leaf]        regex_pattern      := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
     "[leaf]        string_literal     := \"'([^'\\\\]|(\\\\.))*'\"; "
-    "[passthrough] value              := identifier | any | regex_pattern | string_literal | group | optional | context | not | repetition | or | sequence; "
-    "[passthrough] group              := '(' value ')'; "
+    "[variant] value              := identifier | any | regex_pattern | string_literal | group | optional | context | not | repetition | or | sequence; "
+    "[variant] group              := '(' value ')'; "
     "              optional           := '[' value ']'; "
     "              not                := '!' value; "
     "              repetition         := value '...'; "
@@ -1260,13 +1170,13 @@ int main(void) {
     "              sequence           := value value...; "
 
     "definition_type: "
-    "[leaf]        definition_type    := \"removed|leaf|absent|passthrough|splitting|branch\"; "
+    "[leaf]        definition_type    := \"removed|leaf|absent|variant|branch\"; "
 
     "definition_name: "
     "[leaf]        identifier         := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
 
     "context_access: "
-    "[passthrough] context_definition := identifier ':' <definition_value: . ...>; "
+    "[variant] context_definition := identifier ':' <definition_value: . ...>; "
     "[leaf]        identifier         := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
   ;
 
@@ -1274,26 +1184,30 @@ int main(void) {
     "[removed]     whitespace                            := \"[\\r\\n\\t ]+\"; "
     "[removed]     block_comment                         := \"/\\*(.|[\\r\\n])\\**/\"; "
     "[removed]     line_comment                          := \"//.*\"; "
+    "[leaf]        integer                               := \"[0-9]+\"; "
+    "[leaf]        float                                 := \"([.][0-9]+)|([0-9]+[.][0-9]*)\"; "
+    "[leaf]        string                                := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
+    "[leaf]        module                                := \"`([^'\\\\]|(\\\\.))*`\"; "
     "              content                               := <struct_content: . ...>; "
 
     "struct_content: "
-    "              member_definition                     := ['~'] <variable_definition: !('=' | '\\'')...> ['\\''] '=' value ';'; "
-    "              inheritence_definition                := ['~'] '[' value ']'; "
-    "[passthrough] value                                 := identifier | float | int | string | function | struct | array | function_call | member_access | element_access | operator | group; "
+    "[leaf]        prime                                 := '\\''; "
+    "[leaf]        ephemeral                             := '~'; "
+    "              member_definition                     := [ephemeral] <variable_definition: !('=' | '\\'')...> [prime] '=' <value_definition: !('{' | '}' | ';')...> ';'; "
+    "              inheritence_definition                := [ephemeral] '[' <value_definition: !('{' | '}' | '[' | ']' | ';')...> ']'; "
+    "[variant] value                                 := identifier | float | integer | string | function | struct | array | function_call | member_access | element_access | operator_use | group; "
     "              struct                                := '{' <struct_content: !('{' | '}')...> '}'; "
-    "              function                              := '(' [<variable_definition: !(',' | ')')...> [',' <variable_definition: !(',' | ')')...>]...] [','] ')' '->' value; "
+    "              function                              := '(' [<variable_definition: !('(' | ')' | ',')...> [',' <variable_definition: !('(' | ')' | ',')...>]... [',']] ')' '->' value; "
     "              array                                 := '[' tuple ']'; "
     "              function_call                         := value '(' tuple ')'; "
     "              tuple                                 := [value [',' value]...] [',']; "
-    "              
+    "              group                                 := '(' value ')'; "
+    "              member_access                         := value '.' identifier; "
+    "              element_access                        := value '[' value ']'; "
 
     "variable_definition: "
     "              "
 
-    "[leaf]    integer                    := \"[0-9]+\"; "
-    "[leaf]    float                      := \"([.][0-9]+)|([0-9]+[.][0-9]*)\"; "
-    "[leaf]    string                     := \"\\\"([^\\\"\\\\]|(\\\\.))*\\\"\"; "
-    "[leaf]    module                     := \"`([^'\\\\]|(\\\\.))*`\"; "
     "[leaf]    identifier                 := \"[a-zA-Z_][a-zA-Z_0-9]*\"; "
     "          struct_content             := [(member_definition | inheritance_tag | collection_push)...]; "
     "          struct                     := '{' struct_content '}'; "
